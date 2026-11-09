@@ -17,6 +17,11 @@ interface SingleProps<T extends string | number> {
   description?: string;
 }
 
+/** Four or more options with a long word (e.g. “Sometimes”) can't share one phone-width row without cutting a word: let them wrap. */
+function wrapsRow(choices: readonly { label: string }[]): boolean {
+  return choices.length >= 4 && choices.some((c) => c.label.length >= 9);
+}
+
 /** Radio group rendered as large, touch-friendly chips. Native inputs keep keyboard and SR support. */
 export function RadioGroup<T extends string | number>({ legend, name, choices, value, onChange, layout = 'chips', description }: SingleProps<T>) {
   const descId = useId();
@@ -28,7 +33,7 @@ export function RadioGroup<T extends string | number>({ legend, name, choices, v
           {description}
         </p>
       )}
-      <div className={`choices choices-${layout}`}>
+      <div className={`choices choices-${layout}${layout === 'row' && wrapsRow(choices) ? ' choices-row-wrap' : ''}`}>
         {choices.map((c) => (
           <label key={String(c.value)} className="choice">
             <input

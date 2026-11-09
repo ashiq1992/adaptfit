@@ -17,6 +17,11 @@ A visual identity for the notebook idea. No data or feature changes; nothing to 
 - One date format: "23 Oct" (year only when not this year), independent of device locale.
 - Charts drawn in ink; latest value highlighted; sessions per week in blue ink.
 
+### Fixed — phone layout and editing (2026-11-09)
+- **Settings**: group contents now line up under the group title at every width; one shape for every option picker app-wide; switch labels and section labels match other labels; long options wrap instead of being cut (“Sometim…”); theme option “Match device” renamed **Auto**; time boxes get explicit styling for iOS Safari.
+- **Editing**: text boxes grow with their text, wrapped lines included, instead of hiding lines behind a small inner scroll (note editor, Import paste box, plan editor). Done/Cancel are kept on screen while typing and when the keyboard opens.
+- **Tests**: Settings contents aligned and uncut at 7 widths; phone editing never hides text and keeps Done on screen.
+
 ### Added — optional anonymous usage count (built, not yet deployed)
 - **Settings → Privacy & about → “Help count active users (anonymous)”**, off by default and shown only when the build sets `VITE_PINGS_URL`. When on, at most once a day the app sends a random install ID, the app version and whether it is installed. Never workouts, notes, body data or names. Turning it off deletes this device’s rows on the server.
 - **Admin → All users**: today, 7 and 30 days, devices that came back, installs and versions, behind an owner key kept on the owner’s phone.

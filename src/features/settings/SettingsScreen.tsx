@@ -99,7 +99,7 @@ function AppearanceSection() {
             </button>
           ))}
         </div>
-        <p className="field-hint">Paper is warm and easy to read in daylight; Night is the same design in dark ink for the evening. Saved on this device only.</p>
+        <p className="field-hint">Paper is warm and easy to read in daylight; Night is the same design in dark ink for the evening; Auto follows your phone’s light or dark mode. Saved on this device only.</p>
       </fieldset>
     </SettingsGroup>
   );

@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { keepInView, useAutoGrow } from '../../ui/autoGrow';
 
 const DRAFT_PREFIX = 'adaptfit:draft:';
 
@@ -70,6 +71,8 @@ export function BlockEditor({
   const wrapRef = useRef<HTMLDivElement>(null);
   const hintId = useId();
   const done = useRef(false);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  useAutoGrow(ref, text, !single);
 
   useEffect(() => {
     textRef.current = text;
@@ -81,6 +84,12 @@ export function BlockEditor({
     el.focus({ preventScroll: true });
     const len = el.value.length;
     el.setSelectionRange?.(len, len);
+    // Bring the whole editor, Done included, into view; again once the keyboard has opened.
+    keepInView(toolbarRef.current);
+    const vv = window.visualViewport;
+    const onResize = () => keepInView(toolbarRef.current);
+    vv?.addEventListener('resize', onResize);
+    return () => vv?.removeEventListener('resize', onResize);
   }, []);
 
   // Save when the app is hidden (phone locked, app switched, tab changed).
@@ -124,6 +133,8 @@ export function BlockEditor({
     onChange: (e: { target: { value: string } }) => {
       setText(e.target.value);
       writeDraft(draftKey, e.target.value);
+      // Typing at the end grows the box downwards: keep Done above the keyboard.
+      requestAnimationFrame(() => keepInView(toolbarRef.current));
     },
     onKeyDown: (e: { key: string; metaKey: boolean; ctrlKey: boolean; preventDefault: () => void }) => {
       if (e.key === 'Escape') {
@@ -154,7 +165,7 @@ export function BlockEditor({
           {hint}
         </p>
       )}
-      <div className="block-toolbar">
+      <div className="block-toolbar" ref={toolbarRef}>
         {toolbar}
         <span className="grow" />
         <button

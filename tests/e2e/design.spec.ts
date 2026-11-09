@@ -224,3 +224,71 @@ for (const theme of ['paper', 'night'] as const) {
     expect(r.violations.map((v) => `${theme} ${v.id}: ${v.nodes.slice(0, 3).map((n) => `${n.target.join(' ')} ${(n.failureSummary ?? '').slice(0, 160)}`).join(' | ')}`)).toEqual([]);
   });
 }
+
+test('settings contents: every control starts under its group title, stays inside the screen, and no option label is cut off', async ({ page }, info) => {
+  test.setTimeout(120_000);
+  await seed(page, info, openThisWeek);
+  for (const width of [320, 360, ...PHONES, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/#/settings');
+    await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+    await openAllGroups(page);
+    await page.waitForTimeout(250);
+    const r = await page.evaluate(() => {
+      const out = { misaligned: [] as string[], outside: [] as string[], cut: [] as string[], timeHeights: [] as number[] };
+      for (const g of document.querySelectorAll<HTMLDetailsElement>('.settings-group')) {
+        const title = g.querySelector('.settings-text')!.getBoundingClientRect();
+        const row = g.querySelector('summary')!.getBoundingClientRect();
+        const name = g.querySelector('.settings-title')!.textContent;
+        const body = g.querySelector('.settings-body')!;
+        // Direct children of the body: fields, switches, buttons, paragraphs.
+        for (const el of body.children) {
+          const b = el.getBoundingClientRect();
+          if (!b.width) continue;
+          if (window.innerWidth >= 360 && Math.abs(b.left - title.left) > 1) out.misaligned.push(`${name}: ${el.className || el.tagName} at ${Math.round(b.left)} vs title ${Math.round(title.left)}`);
+          if (b.right > row.right + 1) out.outside.push(`${name}: ${el.className || el.tagName}`);
+        }
+        for (const l of body.querySelectorAll<HTMLElement>('.choice-label, .seg-btn')) {
+          if (l.scrollWidth > l.clientWidth + 1) out.cut.push(`${name}: “${l.textContent}”`);
+        }
+        for (const t of body.querySelectorAll<HTMLInputElement>('input[type=time]')) out.timeHeights.push(Math.round(t.getBoundingClientRect().height));
+      }
+      return out;
+    });
+    expect(r.misaligned, `${width}px: controls aligned with their group title`).toEqual([]);
+    expect(r.outside, `${width}px: nothing past the right edge`).toEqual([]);
+    expect(r.cut, `${width}px: no option label cut off`).toEqual([]);
+    expect(r.timeHeights.every((h) => h >= 44), `${width}px: time boxes are full height (${r.timeHeights})`).toBe(true);
+    await noHorizontalOverflow(page);
+  }
+});
+
+test.describe('phone editing', () => {
+  test.use({ viewport: { width: 390, height: 664 }, isMobile: true, hasTouch: true });
+
+  test('pasting and editing a long note: boxes grow with the text (no hidden lines, no box-inside-the-page scrolling) and Done stays on screen', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Get started' }).click();
+    await page.getByRole('button', { name: /^Paste from Notes/ }).click();
+    const note = Array.from({ length: 6 }, (_, i) => `${i + 1}. Lat pulldown\n4 × 6\n76kg\nRest: 2 min\nfelt strong today, next week try 80kg for all four sets and keep the pause at the bottom`).join('\n\n');
+    const paste = page.getByTestId('import-text');
+    await paste.fill(note);
+    const hidden = (sel: string) => page.locator(sel).evaluate((t: HTMLTextAreaElement) => t.scrollHeight - t.clientHeight);
+    expect(await hidden('[data-testid=import-text]'), 'paste box shows the whole note').toBeLessThanOrEqual(1);
+    await page.getByTestId('import-save').click();
+    await expect(page.locator('.note-ex').first()).toBeVisible();
+
+    await page.locator('.note-ex').first().tap();
+    const box = page.locator('.note-textarea');
+    await expect(box).toBeFocused();
+    expect(await hidden('.note-textarea'), 'editor opens showing every line').toBeLessThanOrEqual(1);
+    await box.press('End');
+    await box.pressSequentially('\nanother long line that wraps on a phone screen because it has quite a few words in it');
+    expect(await hidden('.note-textarea'), 'editor grows as you type, wrapped lines included').toBeLessThanOrEqual(1);
+    const done = page.getByRole('button', { name: 'Done' });
+    const b = (await done.boundingBox())!;
+    expect(b.y + b.height, 'Done is on screen while typing').toBeLessThanOrEqual(664);
+    await done.tap();
+    await expect(page.locator('.note-ex-notes').first()).toContainText('another long line');
+  });
+});

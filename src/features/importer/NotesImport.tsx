@@ -1,4 +1,5 @@
 import { useId, useMemo, useState } from 'react';
+import { AutoTextarea } from '../../ui/AutoTextarea';
 import { EXERCISES_BY_ID } from '../../content/exercises';
 import { findImportByHash, getTrainingWeek, newId, saveImportRecord } from '../../data/repo';
 import { getDb } from '../../data/db';
@@ -117,7 +118,7 @@ export function NotesImport() {
         <label className="field-label" htmlFor={`${ids}-text`}>
           Workout note
         </label>
-        <textarea
+        <AutoTextarea
           id={`${ids}-text`}
           className="textarea note-paste"
           value={text}

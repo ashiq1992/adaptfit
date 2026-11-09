@@ -6,6 +6,7 @@ import { parseRoutine } from '../../domain/notesImport';
 import { createProgramme, duplicateDay, estimateDayMinutes, programmeExercise, validateProgramme } from '../../domain/programme';
 import { LOAD_TYPES, type LoadType, type Programme, type ProgrammeDay, type ProgrammeExercise } from '../../domain/types';
 import { useAnnounce } from '../../ui/Announcer';
+import { AutoTextarea } from '../../ui/AutoTextarea';
 import { RadioGroup } from '../../ui/ChoiceGroup';
 import { clock } from '../../ui/clock';
 import { DayPicker } from '../../ui/controls';
@@ -434,9 +435,10 @@ function RoutineImportDialog({ onClose, onImport }: { onClose: () => void; onImp
         <label className="field-label" htmlFor={id}>
           Paste your routine
         </label>
-        <textarea
+        <AutoTextarea
           id={id}
           className="textarea"
+          rows={6}
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={'Upper Body A\nSmith bench 3x6-10\nLat pulldown 3x8-12\nSeated cable row 3x8-12\nLateral raises 3x12-15'}

@@ -9,7 +9,7 @@ export type Theme = 'paper' | 'night' | 'auto';
 export const THEMES: { id: Theme; label: string }[] = [
   { id: 'paper', label: 'Paper' },
   { id: 'night', label: 'Night' },
-  { id: 'auto', label: 'Match device' },
+  { id: 'auto', label: 'Auto' },
 ];
 const KEY = 'adaptfit:theme';
 const BAR = { paper: '#f6f2ea', night: '#161513' } as const;

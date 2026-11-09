@@ -6,6 +6,8 @@ import { useLive } from '../../ui/hooks';
 import { ScreenHeader, useOnline } from '../../ui/ScreenHeader';
 import { THEMES, useTheme } from '../../ui/theme';
 import { formatBytes, formatWhen, summariseDevice, summariseUserAgent, type DeviceSummary } from './diagnostics';
+import { AllUsersSection } from './AllUsersSection';
+import { usageCountAvailable } from '../../data/usageCount';
 import './admin.css';
 
 /** Injected at build time from package.json (see vite.config.ts `define`). */
@@ -111,8 +113,12 @@ export function AdminScreen() {
       <ScreenHeader back={{ href: '#/settings', label: 'Settings' }} title="Admin" subtitle="Diagnostics for this device" />
       <div className="stack">
         <div className="card admin-notice" role="note" data-testid="admin-device-only">
-          <p className="strong">This page shows this device only.</p>
-          <p className="small muted">AdaptFit has no accounts or server, so it can't see other people. Nothing on this page is sent anywhere.</p>
+          <p className="strong">{usageCountAvailable() ? 'Device details on this page are from this phone only.' : 'This page shows this device only.'}</p>
+          <p className="small muted">
+            {usageCountAvailable()
+              ? 'Everything above “All users” is read from this phone. The all-users numbers come from the anonymous count, and only include people who switched it on.'
+              : "AdaptFit has no accounts or server, so it can't see other people. Nothing on this page is sent anywhere."}
+          </p>
         </div>
 
         <section className="page-section" aria-labelledby="admin-app">
@@ -198,6 +204,9 @@ export function AdminScreen() {
           </div>
         </section>
 
+        {usageCountAvailable() ? (
+          <AllUsersSection />
+        ) : (
         <section className="page-section" aria-labelledby="admin-all-users">
           <h2 id="admin-all-users">See all users (needs a server)</h2>
           <div className="card stack-sm">
@@ -214,6 +223,7 @@ export function AdminScreen() {
             </p>
           </div>
         </section>
+        )}
       </div>
     </div>
   );

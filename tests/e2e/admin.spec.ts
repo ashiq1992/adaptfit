@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { seed, watchForErrors } from './helpers';
 
+// This spec covers builds without the optional usage counter (the default); usage-count.spec.ts covers builds with it.
+test.skip(!!process.env.E2E_PINGS_URL, 'build has the usage counter');
+
 /** On-device Admin page: honest "this device only" diagnostics, and no network calls to anyone else. */
 test('admin page shows this device only, with counts from seeded data and no third-party requests', async ({ page, baseURL }, info) => {
   const errors = watchForErrors(page);

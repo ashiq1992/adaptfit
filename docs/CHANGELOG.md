@@ -17,6 +17,13 @@ A visual identity for the notebook idea. No data or feature changes; nothing to 
 - One date format: "23 Oct" (year only when not this year), independent of device locale.
 - Charts drawn in ink; latest value highlighted; sessions per week in blue ink.
 
+### Added — optional anonymous usage count (built, not yet deployed)
+- **Settings → Privacy & about → “Help count active users (anonymous)”**, off by default and shown only when the build sets `VITE_PINGS_URL`. When on, at most once a day the app sends a random install ID, the app version and whether it is installed. Never workouts, notes, body data or names. Turning it off deletes this device’s rows on the server.
+- **Admin → All users**: today, 7 and 30 days, devices that came back, installs and versions, behind an owner key kept on the owner’s phone.
+- **Server** in `server/pings` (Cloudflare Worker + D1, free plan): origin-checked, strict validation, no IP stored, 90-day automatic deletion. Setup: `server/pings/README.md`.
+- The CSP allows exactly one extra connection (the counter) and only when configured; default builds still make no outside connections.
+- Tests: 9 server tests on real SQLite, 9 client tests, and an end-to-end test against a local counter (passed 3/3).
+
 ### Added (later on 2026-11-09)
 - **Import reads 35 real-world note styles** (tested as a corpus): per-set weights, `3x8 @ 60kg`, RPE/RIR, lbs, decimal commas, bodyweight and `+10kg`, superset labels, warm-ups and drop sets (kept as notes, never counted), checkboxes and emoji bullets, dates inside headings, cardio. Logged sets keep their own weights in history and in the weekly update; the plan keeps sets × reps.
 - **Settings** redesigned as a grouped list (Training · Lifestyle · App · Data & privacy) with aligned rows, one chevron style, equal-width choice rows and consistent type. Other screens audited: steppers no longer clip at 375 px, History and Guided programme use the shared header, all tap targets ≥ 44 px, the highlighter is no longer used for non-progress marks.

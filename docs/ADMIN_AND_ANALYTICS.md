@@ -1,5 +1,7 @@
 # Admin page and "who is using AdaptFit?"
 
+> **Update (2026-11-09): built.** The recommended design below now exists as an opt-in anonymous count: `server/pings` (Cloudflare Worker + D1), the Settings switch and **Admin → All users**. Setup and limits: [`server/pings/README.md`](../server/pings/README.md). The rest of this page is the original analysis.
+
 ## What exists today: the on-device Admin page (`#/admin`)
 
 **Settings → Privacy & about → Admin** opens a diagnostics page for **this

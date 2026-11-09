@@ -30,7 +30,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Optional anonymous usage counter (server/pings). Set the repository variable PINGS_URL
+      # (Settings → Secrets and variables → Actions → Variables) to turn on the opt-in switch.
       - run: npm run build
+        env:
+          VITE_PINGS_URL: ${{ vars.PINGS_URL }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

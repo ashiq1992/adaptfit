@@ -9,3 +9,5 @@ playwright-report
 coverage/
 .e2e-*
 test-results-*
+.wrangler
+.dev.vars

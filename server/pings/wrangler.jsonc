@@ -1,0 +1,17 @@
+{
+  // AdaptFit anonymous usage counter. Deploy: see server/pings/README.md
+  "name": "adaptfit-pings",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-11-01",
+  "d1_databases": [
+    { "binding": "DB", "database_name": "adaptfit-pings", "database_id": "87801637-4441-424a-9433-c78352580530" }
+  ],
+  "vars": {
+    // Only these sites may send pings. Origins have no path.
+    "ALLOWED_ORIGINS": "https://ashiq1992.github.io,http://192.168.68.56:4173,http://127.0.0.1:4173,http://localhost:4173"
+  },
+  // Daily cleanup of rows older than 90 days.
+  "triggers": { "crons": ["17 3 * * *"] },
+  // No request logging is kept.
+  "observability": { "enabled": false }
+}

@@ -7,10 +7,16 @@ import { VitePWA } from 'vite-plugin-pwa';
 /** App version shown on the Admin page (from package.json, read at build time). */
 const APP_VERSION = (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }).version;
 
-/** Strict CSP for production builds: no external scripts, fonts, or connections. */
+/**
+ * Optional anonymous usage counter (server/pings). Set VITE_PINGS_URL at build time
+ * to enable the opt-in switch; when unset, the app makes no outside connections.
+ */
+const PINGS_ORIGIN = process.env.VITE_PINGS_URL ? new URL(process.env.VITE_PINGS_URL).origin : '';
+
+/** Strict CSP for production builds: no external scripts or fonts; connections only to this site (and the counter, if configured). */
 const CSP =
   "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
-  "connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'";
+  `connect-src 'self'${PINGS_ORIGIN ? ' ' + PINGS_ORIGIN : ''}; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'`;
 
 function productionCsp(): Plugin {
   return {
@@ -70,7 +76,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
-    include: ['tests/unit/**/*.test.{ts,tsx}', 'tests/integration/**/*.test.{ts,tsx}'],
+    include: ['tests/unit/**/*.test.{ts,tsx}', 'tests/integration/**/*.test.{ts,tsx}', 'tests/server/**/*.test.ts'],
     restoreMocks: true,
     coverage: { provider: 'v8', include: ['src/**'], exclude: ['src/main.tsx', 'src/**/*.css'], reporter: ['text-summary', 'html'] },
   },

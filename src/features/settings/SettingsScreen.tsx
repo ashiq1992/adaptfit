@@ -1,5 +1,6 @@
 import { type ReactNode, useId, useState } from 'react';
 import { resetAllData, saveNote, saveNutrition, saveProfile } from '../../data/repo';
+import { setUsageCount, usageCountAvailable, useUsageCountOn } from '../../data/usageCount';
 import { emptyNutritionProfile, seedFromLifestyle } from '../../domain/nutrition';
 import { type Lifestyle, type Profile, TRAINING_WINDOWS, type TrainingWindow } from '../../domain/types';
 import { usePwa } from '../../pwa';
@@ -412,9 +413,30 @@ function DataSection() {
   );
 }
 
+function UsageCountSwitch() {
+  const on = useUsageCountOn();
+  const announce = useAnnounce();
+  return (
+    <div className="stack-sm" data-testid="usage-count">
+      <Switch
+        label="Help count active users (anonymous)"
+        hint="Once a day, sends a random ID made on this phone, the app version, and whether it’s installed. Never your workouts, notes, body data, or name. Off deletes this phone’s count."
+        checked={on}
+        onChange={(v) => {
+          void setUsageCount(v);
+          announce(v ? 'Thanks — anonymous count on.' : 'Anonymous count off. This phone’s count is being deleted.');
+        }}
+      />
+    </div>
+  );
+}
+
 function PrivacySection() {
+  const counting = usageCountAvailable();
   const items: ReactNode[] = [
-    'No account, cloud storage, analytics, ads, or third-party scripts.',
+    counting
+      ? 'No account, cloud storage, ads, or third-party scripts. The only thing that can leave this phone is the anonymous count below, and only if you switch it on.'
+      : 'No account, cloud storage, analytics, ads, or third-party scripts.',
     'Training, lifestyle, and nutrition data never leave this device unless you export a backup.',
     'Coaching runs locally with transparent rules — no external AI service.',
     'AdaptFit offers general fitness guidance for adults. It does not diagnose, give medical clearance, or replace a qualified professional.',
@@ -426,6 +448,7 @@ function PrivacySection() {
           <li key={i}>{t}</li>
         ))}
       </ul>
+      {counting && <UsageCountSwitch />}
       <p className="xs faint">AdaptFit V0.5 · Intelligent Workout Notebook</p>
       <a href="#/admin" className="btn btn-secondary">
         Admin: this device’s storage and usage

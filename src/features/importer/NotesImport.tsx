@@ -1,4 +1,5 @@
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
+import { clearSharedText, peekSharedText } from './sharedText';
 import { AutoTextarea } from '../../ui/AutoTextarea';
 import { EXERCISES_BY_ID } from '../../content/exercises';
 import { findImportByHash, getTrainingWeek, newId, saveImportRecord } from '../../data/repo';
@@ -41,7 +42,25 @@ export function NotesImport() {
   const { data, today } = useApp();
   const announce = useAnnounce();
   const ids = useId();
-  const [text, setText] = useState('');
+  // Text shared in from another app (Android Share menu) arrives pre-filled.
+  const [text, setText] = useState(() => peekSharedText() ?? '');
+  const [shared] = useState(() => peekSharedText() !== null);
+  const [pasteMsg, setPasteMsg] = useState<string | null>(null);
+  useEffect(() => clearSharedText(), []);
+  const canPaste = typeof navigator !== 'undefined' && typeof navigator.clipboard?.readText === 'function';
+  const paste = async () => {
+    setPasteMsg(null);
+    try {
+      const t = await navigator.clipboard.readText();
+      if (t.trim()) {
+        setText(t);
+        setRes({});
+        announce('Pasted from the clipboard.');
+      } else setPasteMsg('The clipboard is empty. In Notes, select the workout and tap Copy first.');
+    } catch {
+      setPasteMsg('This browser didn’t allow reading the clipboard. Tap and hold in the box below, then Paste.');
+    }
+  };
   const [mode, setMode] = useState<ImportMode>(data.activeProgramme ? 'week' : 'template');
   const [date, setDate] = useState('');
   const [undated, setUndated] = useState(false);
@@ -115,9 +134,22 @@ export function NotesImport() {
     <div className="screen import-screen">
       <ScreenHeader back={{ href: '#/plan', label: 'Plan' }} title="Import from Notes" subtitle="Paste a workout from Apple Notes, Google Keep, or anywhere. You review everything before it’s saved." />
       <div className="field">
-        <label className="field-label" htmlFor={`${ids}-text`}>
-          Workout note
-        </label>
+        <div className="field-label-row">
+          <label className="field-label" htmlFor={`${ids}-text`}>
+            Workout note
+          </label>
+          {canPaste && (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void paste()} data-testid="import-paste">
+              Paste
+            </button>
+          )}
+        </div>
+        {shared && text && <p className="small success">Shared from another app. Check the preview below.</p>}
+        {pasteMsg && (
+          <p className="small muted" role="status">
+            {pasteMsg}
+          </p>
+        )}
         <AutoTextarea
           id={`${ids}-text`}
           className="textarea note-paste"

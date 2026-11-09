@@ -10,7 +10,7 @@
 
 No account, no cloud, no tracking, no AI service: everything stays in this browser on this device.
 
-Version **0.5.0** ("Ink & Paper": warm paper, black ink for the plan, blue ink for what you did, a highlighter for progress; Night theme in Settings → Appearance). See [`docs/CHANGELOG.md`](docs/CHANGELOG.md) and the brand board [`docs/brand/ink-and-paper.html`](docs/brand/ink-and-paper.html).
+Version **0.6.0** (share a week as text, “same for all” answers, Paste and Android Share-menu import; "Ink & Paper": warm paper, black ink for the plan, blue ink for what you did, a highlighter for progress; Night theme in Settings → Appearance). See [`docs/CHANGELOG.md`](docs/CHANGELOG.md) and the brand board [`docs/brand/ink-and-paper.html`](docs/brand/ink-and-paper.html).
 
 ## ⚠️ Before upgrading — back up first
 

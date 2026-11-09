@@ -505,6 +505,7 @@ button, input, select, textarea {
 
 .field { display: flex; flex-direction: column; gap: var(--space-2); }
 .field-label { font-weight: 600; font-size: var(--fs-sm); padding: 0; }
+.field-label-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .field-hint { font-size: var(--fs-xs); color: var(--text-2); }
 .input, .select, .textarea {
   min-height: var(--touch);
@@ -1035,6 +1036,14 @@ button, input, select, textarea {
 }
 .toast > span { flex: 1 1 auto; }
 .toast .btn { background: transparent; border-color: var(--on-ink); color: var(--on-ink); }
+/* A question toast: text on top, answers on their own row on phones. */
+.toast-offer { flex-wrap: wrap; padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4); }
+.toast-offer > span:first-child { flex-basis: 100%; }
+.toast-actions { display: flex; gap: var(--space-2); justify-content: flex-end; flex: 1 1 auto; }
+.toast .btn-primary { background: var(--on-ink); color: var(--ink); border-color: var(--on-ink); }
+/* Two toasts at once: the question sits above the undo bar. */
+.toast-offer + .toast { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--space-3)); }
+.toast-offer:has(+ .toast) { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--space-3) + 64px); }
 .menu { display: flex; flex-direction: column; }
 .menu-item { min-height: 48px; padding: 0 var(--space-2); text-align: left; background: none; border: 0; border-bottom: 1px solid var(--rule); color: var(--text); font-size: var(--fs-md); cursor: pointer; }
 .menu-item:last-child { border-bottom: 0; }

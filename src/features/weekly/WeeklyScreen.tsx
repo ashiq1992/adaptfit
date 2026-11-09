@@ -30,6 +30,8 @@ import { ScreenHeader } from '../../ui/ScreenHeader';
 import { trim } from '../../domain/loads';
 import { dayDate, WEEKDAY_LABELS, weekLabel } from '../format';
 import { useWeekReview, WeekReviewCard } from './WeekReview';
+import { weekShareText } from '../../domain/shareText';
+import { CopyDialog } from '../../ui/CopyDialog';
 
 const STATUSES: WeeklySessionStatus[] = ['completed', 'partial', 'skipped', 'not-recorded'];
 
@@ -66,6 +68,8 @@ export function WeeklyScreen({ weekStart: param }: { weekStart: string | null })
 
 function ConfirmedWeek({ week, onEdit }: { week: TrainingWeek; onEdit: () => void }) {
   const review = useWeekReview(week);
+  const [sharing, setSharing] = useState(false);
+  const shareText = () => weekShareText(week, { footer: `Logged with AdaptFit · ${location.origin}${location.pathname}` });
   return (
     <>
       {review && (
@@ -77,6 +81,9 @@ function ConfirmedWeek({ week, onEdit }: { week: TrainingWeek; onEdit: () => voi
               <a href="#/plan" className="btn btn-primary">
                 Done
               </a>
+              <button type="button" className="btn btn-secondary" onClick={() => setSharing(true)} data-testid="share-week">
+                Share week
+              </button>
               <button type="button" className="btn btn-tertiary" onClick={onEdit}>
                 Edit this week
               </button>
@@ -89,6 +96,7 @@ function ConfirmedWeek({ week, onEdit }: { week: TrainingWeek; onEdit: () => voi
           }
         />
       )}
+      {sharing && <CopyDialog title="Share this week" label="Week as text" text={shareText()} onClose={() => setSharing(false)} />}
       <WeekSummaryList week={week} />
       {week.history.length > 0 && <p className="xs muted">Edited {week.history.length} time{week.history.length === 1 ? '' : 's'} after first confirming. Earlier versions are kept.</p>}
     </>

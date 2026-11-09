@@ -16,6 +16,8 @@ import { ScreenHeader } from '../../ui/ScreenHeader';
 import { hashParams, weekLabel } from '../format';
 import { startDay } from '../train/start';
 import { BlockEditor, listDrafts, readDraft } from './BlockEditor';
+import { CopyDialog } from '../../ui/CopyDialog';
+import { applySameAnswer, familyWord, sameAnswerOffer, type SameAnswerOffer } from '../../domain/clarify';
 
 type Editing =
   | { kind: 'exercise'; dayId: string; exId: string | 'new' }
@@ -96,6 +98,7 @@ function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId:
   const [restored] = useState(() => listDrafts(`${programme.id}:`).length > 0);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [removed, setRemoved] = useState<string | null>(null);
+  const [offer, setOffer] = useState<SameAnswerOffer | null>(null);
   const [menu, setMenu] = useState<'note' | { dayId: string } | null>(null);
   const [confirm, setConfirm] = useState<'delete-note' | { dayId: string } | null>(null);
   const [copyText, setCopyText] = useState<string | null>(null);
@@ -310,7 +313,7 @@ function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId:
                       })}
                     </li>
                   ) : (
-                    <ExerciseLine key={ex.id} ex={ex} unit={unit} onEdit={() => setEditing({ kind: 'exercise', dayId: day.id, exId: ex.id })} onPatch={(patch, reason) => void patchExercise(day, ex, patch, reason)} />
+                    <ExerciseLine key={ex.id} ex={ex} unit={unit} onEdit={() => setEditing({ kind: 'exercise', dayId: day.id, exId: ex.id })} onPatch={(patch, reason) => void patchExercise(day, ex, patch, reason)} onLoadType={(t) => setOffer(sameAnswerOffer(programme, ex, t))} />
                   ),
                 )}
                 {isEditing({ kind: 'exercise', dayId: day.id, exId: 'new' }) && (
@@ -343,6 +346,29 @@ function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId:
         <IconPlus /> Add day
       </button>
 
+      {offer && (
+        <div className="toast toast-offer" role="status" data-testid="same-answer">
+          <span>
+            Also use “{offer.loadType === 'total' ? 'Total' : LOAD_TYPE_LABEL[offer.loadType].replace(' (assistance amount)', '')}” for {offer.targets.length === 1 ? 'the other' : `the ${offer.targets.length} other`} {familyWord(offer.family)} {offer.targets.length === 1 ? 'exercise' : 'exercises'} still asking?
+          </span>
+          <span className="toast-actions">
+            <button type="button" className="btn btn-tertiary btn-sm" onClick={() => setOffer(null)}>
+              No
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => {
+                const o = offer;
+                setOffer(null);
+                void save(applySameAnswer(programme, o), 'Clarified loading').then(() => announce(`Updated ${o.targets.length} more.`));
+              }}
+            >
+              {offer.targets.length === 1 ? 'Apply' : `Apply to ${offer.targets.length}`}
+            </button>
+          </span>
+        </div>
+      )}
       {removed && (
         <div className="toast" role="status">
           <span>Removed {removed}.</span>
@@ -429,7 +455,7 @@ function SaveIndicator({ state }: { state: SaveState }) {
 }
 
 /** One exercise as note text, with anything uncertain shown in amber and resolvable in one tap. */
-function ExerciseLine({ ex, unit, onEdit, onPatch }: { ex: ProgrammeExercise; unit: 'kg' | 'lb'; onEdit: () => void; onPatch: (p: Partial<ProgrammeExercise>, reason: string) => void }) {
+function ExerciseLine({ ex, unit, onEdit, onPatch, onLoadType }: { ex: ProgrammeExercise; unit: 'kg' | 'lb'; onEdit: () => void; onPatch: (p: Partial<ProgrammeExercise>, reason: string) => void; onLoadType?: (t: LoadType) => void }) {
   const { data } = useApp();
   const pres = prescription(ex, unit);
   const last = useMemo(() => latestReference(ex, data.sessions, data.imports, '9999-12-31'), [ex, data.sessions, data.imports]);
@@ -455,7 +481,11 @@ function ExerciseLine({ ex, unit, onEdit, onPatch }: { ex: ProgrammeExercise; un
           <div className="clarify-options">
             {f === 'loadType' &&
               CONVENTIONS.map((t) => (
-                <button key={t} type="button" className="btn btn-tertiary btn-sm" onClick={() => onPatch({ loadType: t, uncertain: ex.uncertain.filter((u) => u !== 'loadType') }, 'Clarified loading')}>
+                <button key={t} type="button" className="btn btn-tertiary btn-sm" onClick={() => {
+                    onPatch({ loadType: t, uncertain: ex.uncertain.filter((u) => u !== 'loadType') }, 'Clarified loading');
+                    onLoadType?.(t);
+                  }}
+                >
                   {t === 'total' ? 'Total' : LOAD_TYPE_LABEL[t].replace(' (assistance amount)', '')}
                   {ex.plannedLoad && t !== 'bodyweight-plus' && t !== 'assisted' ? ` · ${noteLoad(ex.plannedLoad.value, t, ex.plannedLoad.unit)}` : ''}
                 </button>
@@ -555,42 +585,6 @@ function DayMenu({ programme, day, onClose, onEditText, onLive, onDelete, onCopy
         {item('Log sets live (optional)', () => onLive(day), { disabled: day.exercises.length === 0 })}
         {item('Delete day…', onDelete, { danger: true, disabled: programme.days.length <= 1 })}
       </div>
-    </Dialog>
-  );
-}
-
-function CopyDialog({ text, onClose }: { text: string; onClose: () => void }) {
-  const [state, setState] = useState<'idle' | 'copied' | 'manual'>('idle');
-  const ref = useRef<HTMLTextAreaElement>(null);
-  return (
-    <Dialog
-      title="Copy as text"
-      onClose={onClose}
-      actions={
-        <>
-          <button type="button" className="btn btn-tertiary" onClick={onClose}>
-            Close
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => {
-              const fallback = () => {
-                ref.current?.select();
-                setState('manual');
-              };
-              if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(() => setState('copied'), fallback);
-              else fallback();
-            }}
-          >
-            Copy
-          </button>
-        </>
-      }
-    >
-      <textarea ref={ref} className="textarea" readOnly value={text} rows={10} aria-label="Note text" />
-      {state === 'copied' && <p className="success">Copied. Paste it into Notes or a message.</p>}
-      {state === 'manual' && <p className="small muted">Text selected — use your device’s Copy.</p>}
     </Dialog>
   );
 }

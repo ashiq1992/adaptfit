@@ -101,7 +101,7 @@ describe('Notes corpus: what each style records', () => {
     expect(logged(db!)).toEqual(sets(27.5, [7]));
     expect(lat!.values).toMatchObject({ sets: 4, repMin: 6, restSec: 120 });
     expect(logged(lat!)).toEqual(sets(76, [8]));
-    expect(lat!.comments).toEqual(['Weighted if possible', 'RIR 1', 'added 1']);
+    expect(lat!.comments).toEqual(['Weighted if possible', 'RIR 1', 'Added 1 (no unit written, so not counted in the weight)']);
     expect(row).toMatchObject({ name: 'Chest Supported Row', known: false });
     expect(logged(row!)).toEqual(sets(45, [8, 8, 8]));
   });
@@ -429,7 +429,7 @@ describe('The user’s note in all three import modes', () => {
       ['Chest Supported Row', 3, 8, 8, 90, 45],
     ]);
     expect(db!.notes.split('\n')).toEqual(['Logged: 27.5 kg/dumbbell × 7', 'Rest 2–3 min']);
-    expect(lat!.notes.split('\n')).toEqual(['Logged: 76 kg × 8', 'Weighted if possible', 'RIR 1', 'added 1']);
+    expect(lat!.notes.split('\n')).toEqual(['Logged: 76 kg × 8', 'Weighted if possible', 'RIR 1', 'Added 1 (no unit written, so not counted in the weight)']);
     expect(row!.notes).toBe('RIR 1'); // 3 × 8 at 45 is shown by the plan itself
   });
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.0 — 2026-11-09 — "Less typing"
+
+### Added
+- **Same answer for all.** After answering “Total, per side or per dumbbell?” for one exercise, AdaptFit offers the same answer for the other exercises in the note that are still asking and are loaded the same way (same equipment and usual loading, so a Smith machine answer is never applied to dumbbells). Nothing changes unless you tap Apply.
+- **Share a week as text.** A confirmed week has **Share week**: a plain-text summary (sessions, dates for sessions done, what was done, skipped, notes) to copy or send with the phone’s Share sheet. It reads like a note and imports back into AdaptFit.
+- **Paste button** on Import (iPhone-friendly: Notes → Copy, then AdaptFit → Paste).
+- **Android Share menu.** The installed app accepts text shared from Notes or Keep and opens Import pre-filled (manifest share_target). iPhone home-screen apps can’t receive shares, so iPhone uses Paste.
+
+### Changed
+- A unitless “with added 1” now reads “Added 1 (no unit written, so not counted in the weight)” instead of a bare “added 1”.
+- Copy dialogs offer **Share…** where the browser supports it.
+
+### Tests
+- 7 unit tests (same-for-all grouping, share-text format and round trip through import, shared-text intake) and 6 browser tests (offer and decline, share and copy a confirmed week, shared text opens Import, Paste button, manifest share target).
+
 ## 0.5.0 — 2026-11-09 — "Ink & Paper"
 
 A visual identity for the notebook idea. No data or feature changes; nothing to migrate.

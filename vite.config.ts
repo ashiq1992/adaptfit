@@ -53,6 +53,8 @@ export default defineConfig({
         categories: ['health', 'fitness', 'productivity'],
         orientation: 'portrait',
         start_url: './',
+        // Android: AdaptFit appears in the Share menu once installed; shared text opens Import (see sharedText.ts).
+        share_target: { action: './', method: 'GET', params: { title: 'title', text: 'text', url: 'url' } },
         scope: './',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },

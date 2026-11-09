@@ -206,7 +206,8 @@ export function parseValues(input: string): ParsedValues {
   }
   // "with added 1" (no unit): unclear what was added — kept as written, not used as a load.
   if ((m = /\badded\s+(\d+(?:[.,]\d+)?)(?!\s*(?:kgs?|kilos?|lbs?|pounds?)\b|[.,]?\d)/i.exec(rest))) {
-    out.notes.push(m[0].trim());
+    // Say why it is only a note, so the leftover makes sense on its own.
+    out.notes.push(`Added ${m[1]} (no unit written, so not counted in the weight)`);
     take(m);
   }
   out.performed = /\b(did|done|got|managed|hit|achieved)\b|\d\s*(?:kgs?|lbs?)?\s*(?:for|at)\s+\d+\s*reps?\b/i.test(rest) || effort;

@@ -130,7 +130,7 @@ describe('V0.3 guided programmes', () => {
 });
 
 describe('V0.3 planned versus actual loads', () => {
-  const day = (planned: { value: number; unit: 'kg' | 'lb' } | null) => ({ id: 'd1', name: 'Upper', exercises: [{ ...pe('smith-bench-press', { sets: 3, repMin: 6, repMax: 10 }), plannedLoad: planned }] });
+  const day = (planned: { value: number; unit: 'kg' | 'lb' } | null) => ({ id: 'd1', name: 'Upper', notes: '', exercises: [{ ...pe('smith-bench-press', { sets: 3, repMin: 6, repMax: 10 }), plannedLoad: planned }] });
 
   it('T08 planned working loads save and validate', async () => {
     const db = createDb(`v3-t08-${Math.random()}`);

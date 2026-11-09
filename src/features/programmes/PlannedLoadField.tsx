@@ -57,7 +57,7 @@ export function PlannedLoadField({ loadType, value, defaultUnit, onChange, exerc
         <label className="field-label xs" htmlFor={id}>
           {LABEL[loadType] ?? 'Planned starting weight'} <span className="faint">(optional)</span>
         </label>
-        <div className="row" style={{ gap: 8 }}>
+        <div className="row">
           <input
             id={id}
             className="input input-num"

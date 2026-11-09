@@ -1,6 +1,6 @@
 import { type ReactNode, useId, useState } from 'react';
 import type { ChangeKind } from '../domain/progression';
-import { IconDash, IconDown, IconMinus, IconPlus, IconUp } from './icons';
+import { IconChevronDown, IconDash, IconDown, IconMinus, IconPlus, IconUp } from './icons';
 
 /** Tablist with arrow-key navigation. Panels are rendered by the caller. */
 export function Tabs<T extends string>({ tabs, value, onChange, label, idBase }: { tabs: readonly { id: T; label: string }[]; value: T; onChange: (t: T) => void; label: string; idBase: string }) {
@@ -105,9 +105,9 @@ export function Stepper({ label, value, step, min = 0, onCommit, unit, decimals 
 export function Switch({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="switch">
-      <span>
-        <span className="strong">{label}</span>
-        {hint && <span className="field-hint" style={{ display: 'block' }}>{hint}</span>}
+      <span className="switch-text">
+        <span className="switch-label">{label}</span>
+        {hint && <span className="field-hint">{hint}</span>}
       </span>
       <input type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       <span className="switch-track" aria-hidden="true" />
@@ -154,20 +154,29 @@ export function Progress({ value, max, tone, label }: { value: number; max: numb
   );
 }
 
+/** A titled run of settings rows, separated by hairlines (iOS-style grouped list, on paper). */
+export function SettingsSection({ title, children }: { title: string; children: ReactNode }) {
+  const id = useId();
+  return (
+    <section className="settings-section" aria-labelledby={id}>
+      <h2 id={id} className="settings-section-title">
+        {title}
+      </h2>
+      <div className="settings-list">{children}</div>
+    </section>
+  );
+}
+
 export function SettingsGroup({ icon, title, subtitle, children, defaultOpen, id }: { icon: ReactNode; title: string; subtitle: string; children: ReactNode; defaultOpen?: boolean; id?: string }) {
   return (
     <details className="settings-group" open={defaultOpen} id={id}>
       <summary>
         <span className="settings-icon">{icon}</span>
-        <span>
-          <span className="strong" style={{ display: 'block' }}>
-            {title}
-          </span>
-          <span className="small muted">{subtitle}</span>
+        <span className="settings-text">
+          <span className="settings-title">{title}</span>
+          <span className="settings-subtitle">{subtitle}</span>
         </span>
-        <span className="chev" aria-hidden="true">
-          ›
-        </span>
+        <IconChevronDown size={18} className="chev" />
       </summary>
       <div className="settings-body">{children}</div>
     </details>
@@ -180,7 +189,7 @@ export function DayPicker({ legend, value, onChange }: { legend: string; value: 
   return (
     <fieldset className="field">
       <legend className="field-label">{legend}</legend>
-      <div className="choices choices-chips">
+      <div className="choices choices-row">
         {[1, 2, 3, 4, 5, 6, 0].map((d) => (
           <label key={d} className="choice">
             <input type="checkbox" checked={value.includes(d)} onChange={(e) => onChange(e.target.checked ? [...value, d].sort() : value.filter((x) => x !== d))} />

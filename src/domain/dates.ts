@@ -34,11 +34,14 @@ export function addDays(localDate: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function formatLocalDate(localDate: string): string {
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "23 Oct" (this year) or "23 Oct 2025". Locale-independent, so text is the same on every device. */
+export function formatLocalDate(localDate: string, currentYear: number = new Date().getFullYear()): string {
   const m = DATE_RE.exec(localDate);
   if (!m) return localDate;
-  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
-  return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  const base = `${Number(m[3])} ${MONTHS_SHORT[Number(m[2]) - 1]}`;
+  return Number(m[1]) === currentYear ? base : `${base} ${m[1]}`;
 }
 
 export function formatDuration(totalSec: number): string {

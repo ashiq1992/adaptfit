@@ -157,3 +157,215 @@ Tested with fake-indexeddb (T58: the v3 → v4 upgrade preserves sessions, XP, a
 1. Before upgrading, export a V0.2 backup (V0.2 → Settings → Export backup).
 2. To go back, build a copy of the V0.2 source (the project has no commits yet, so keep a copy of the V0.2 folder), open it at a **different address or after clearing site data** (a v4 database can't be opened by V0.2), and Restore the V0.2 backup.
 3. If no V0.2 backup exists, the pre-upgrade copy of the changed records is in IndexedDB at `adaptfit → meta → snapshot:pre-v0.3`. Sessions and check-ins were never changed by the upgrade.
+
+
+---
+
+# V0.4 — Intelligent Workout Notebook (2026-11-08)
+
+V0.4 is a product pivot, not a rebuild. The React/TypeScript/Dexie stack, the
+domain modules (progression, plateau, coaching, schedule, guided programmes,
+nutrition, bodyweight, backup) and all stored data were kept. What changed is the
+everyday experience: the plan is a **note**, progress is recorded with a
+**weekly update**, and analysis runs on confirmed records.
+
+## Phase 0 audit
+
+- Baseline before changes: lint, typecheck and 182 Vitest tests passed (V0.3).
+- Git checkpoint: commit `9091292` "AdaptFit V0.3.0 baseline", plus branch
+  **`legacy/v0.3-rpg`**, which keeps the full RPG implementation (characters,
+  XP, missions, Journey) for later reference.
+- Existing workflows audited: Train (start workout → set-by-set logging →
+  finish), History, Progress, Coach (This Week / Insights / Fuel / History),
+  Journey, Settings, onboarding (6 steps).
+
+## Navigation
+
+| V0.3 | V0.4 |
+|---|---|
+| Train · Progress · Coach · Journey (+ History, Settings) | **Plan · Progress · Coach**; Settings from the top-right icon |
+
+Routes (hash-based, so they survive refresh and work offline):
+
+| Route | Screen |
+|---|---|
+| `#/plan` | Plan (landing) |
+| `#/note/:id[/:dayId]` | Workout note (scrolls to the day) |
+| `#/week`, `#/week/:weekStart` | Weekly update / a past week |
+| `#/weeks` | Previous weeks |
+| `#/import` | Import from Notes |
+| `#/library`, `#/library/guide[?template=id]` | Programme library / recommendation |
+| `#/progress`, `#/progress/:exerciseKey` | Progress / exercise detail |
+| `#/coach`, `#/coach/fuel`, `#/coach/history` | Coach summary / Fuel / Decisions |
+| `#/settings`, `#/history`, `#/workout`, `#/done/:id`, `#/programmes/:id` | Settings, all workouts, optional live log, live summary, advanced editor |
+
+V0.3 routes (`#/train`, `#/journey`) land on Plan.
+
+## New and changed modules
+
+| Module | Purpose |
+|---|---|
+| `domain/noteParser.ts` | Deterministic notation parser: values (`parseValues`), line classification, whole-note parsing (`parseNote`), `performanceSets`. No AI, no network; isolated so an optional interpretation layer could be added later. |
+| `domain/noteFormat.ts` | Note text ⇄ structure: `prescription`, `exerciseText`, `dayText`, `programmeText`; `parseExerciseBlock`, `parseDayText` (keep IDs), `daysFromNote`; weekly `performanceText` / `parsePerformance`. |
+| `domain/weekly.ts` | Weekly records: planned slots, drafts (`buildWeekDraft`), editing, validation (`weekIssues`), `sessionsFromWeek`, `confirmWeekRecord`, live reconciliation, `dedupeSessions`, note-weight updates. |
+| `domain/performance.ts` | `describeChange`, `exerciseStatus` (improving / stable / possible decline / possible plateau / insufficient data), `reviewWeek`, `milestones`, `weeklyFrequency`. |
+| `domain/importer.ts` | Import review: resolutions, issues, template days, history records (dated or undated), filling this week's draft, duplicate hash. |
+| `domain/progression.ts` | `compare` now also counts reps across sets at the same top load (9,8,8 → 9,9,8 is progress, not "stable"). |
+| `features/plan`, `features/notes`, `features/weekly`, `features/importer/NotesImport`, `features/programmes/LibraryScreen` | New screens. |
+| `ui/ScreenHeader`, `ui/keyboard` | Native-style header; keyboard awareness (nav hides while typing, focused field scrolled into view). |
+| Removed from the app | `domain/rpg.ts`, `ui/Adventurer.tsx`, `ui/sprites.ts`, `content/characters.ts`, `features/journey/*`, Home/readiness screens, V0.2 import screen — all on `legacy/v0.3-rpg`. |
+
+## Data model (database v5, backup format 4)
+
+Kept as-is: profile, check-ins, sessions (the shared performance record),
+programmes, custom exercises, recommendations, week plans, measurements,
+bodyweights, nutrition, meal plans, legacy copies.
+
+| Brief's suggested entity | V0.4 implementation |
+|---|---|
+| WorkoutNote / WorkoutTemplate | `Programme` rendered as a note. New fields: `Programme.notes`, `ProgrammeDay.notes` (free text, preserved verbatim), `ProgrammeExercise.uncertain` (fields the parser couldn't confirm). |
+| TrainingWeek | `trainingWeeks` table, key `weekStart` (one record per week ⇒ no duplicate weeks). Draft → confirmed; `revision` and `history` keep earlier confirmed versions. |
+| WeeklySessionRecord | `TrainingWeek.sessions[]`: day, date, status (completed / partial / skipped / not-recorded), `sessionId` link, `live` flag. |
+| ExercisePerformance / PerformanceSet | `ExercisePerformance` (text as typed, parsed sets, status, source: copied / edited / planned / imported / live / blank, previous reference). |
+| (historical session) | On confirm, each completed session becomes a `WorkoutSession` with `source: 'weekly'` and a stable ID `weekly-<weekStart>-<record>`. Live logging writes the same model, so all analysis is shared. |
+| WorkoutNoteRevision | `noteRevisions` table: snapshot before every save (max 50 per note); undo restores the latest. A deleted note keeps a final revision. |
+| WorkoutImport | `imports` table: hash, mode, date (or undated), text, created IDs, undated values. |
+| ProgressSnapshot / CoachingInsight | Not stored: derived from records each time (reproducible, never contradicts data). |
+| RecommendationDecision | Existing `recommendations` table (accept / reject / later). |
+
+Profile adds `loggingMode` (`weekly` | `live`) and `notifications`
+(`weeklyReminder`, `coachFindings` — in-app only).
+
+### Migration v4 → v5
+
+1. Copy the profile and programmes to `meta['snapshot:pre-v0.4']`.
+2. Profile: add `loggingMode` (users who already logged with the timer get
+   `live`, so their habit stays one tap away) and `notifications`. The V0.3
+   `character` and `gamification` values stay in the profile (archived, not shown).
+3. Programmes: add `notes: ''`, day `notes: ''`, exercise `uncertain: []`.
+4. Nothing else is touched: sessions, check-ins, bodyweight, nutrition, coaching
+   decisions are byte-identical (tested).
+
+Backups: format 4 adds `trainingWeeks`, `noteRevisions`, `imports`. Formats 1–3
+are migrated on restore exactly like the database upgrade.
+
+**Rollback to V0.3:** export a backup in V0.4 first; check out
+`legacy/v0.3-rpg` (or the `9091292` commit), build, and restore a backup taken
+*before* upgrading (V0.3 can't read format 4). V0.4 never deletes the snapshot
+in `meta`, so a developer can also recover pre-upgrade programmes from it.
+
+## Notes editor
+
+- **Display:** day headings (amber small caps), each exercise as two lines —
+  name, then `3 sets × 8 reps — 30 kg/side` — plus notes, plus a faint
+  `Last (w/c 26 Oct): 30 kg/side × 7, 7, 6` from real history.
+- **Inline editing:** tapping a line turns it into a text box containing exactly
+  what was shown. On Done, leaving the field, switching app, or locking the
+  phone, the text is parsed (`parseExerciseBlock`) and saved. IDs are kept, so
+  history and coaching links survive. A bare `35 kg` keeps the exercise's
+  established convention; a new exercise with an unclear convention is
+  flagged, never assumed.
+- **Edit as text:** a whole day as one text box (`parseDayText`) for adding,
+  removing, reordering or pasting several lines; exercises are matched to the
+  existing ones by identity or name.
+- **Uncertain fields** appear as amber questions with one-tap answers (total /
+  per side / per dumbbell / added / assisted; kg / lb; keep name).
+- **Reliability:** every keystroke is mirrored synchronously to
+  `localStorage` (`adaptfit:draft:*`) and restored after refresh or a crash
+  ("Restored your unsaved edit"); saves are IndexedDB transactions with a
+  revision; status shows Saving… / Saved / Not saved; Undo button and an undo
+  toast for removals; destructive deletes (note, day) need confirmation.
+- No background execution is claimed: saving uses `visibilitychange` and
+  `pagehide`, which iOS and Android deliver when the app is hidden.
+
+## Weekly update workflow
+
+1. Plan → **Update this week** (or Continue / Review).
+2. **Copy previous week** (or Start from my plan). Values come from the last
+   confirmed week, else the latest real record, else an undated import, else
+   the plan (`from plan`), else blank. Every session starts *Not recorded*.
+3. Change only what differs; changed rows are highlighted with `was …`.
+4. Mark sessions Done / Partly done / Skipped (or **Mark all as done**), and
+   confirm the day trained (prefilled from the day's weekday name or preferred
+   days; required).
+5. **Review changes** (optional): status per session, what changed, empty rows
+   that won't be recorded, issues, and "Update my note to this week's loads".
+6. **Confirm week** → workout records written in one transaction → review.
+
+Integrity rules (unit-tested): copied ≠ confirmed; skipped / not-recorded never
+complete; blank rows are never "unchanged"; one record per week; re-confirming
+updates the same records and keeps the previous version; a session logged live
+is shown as "Logged in detail" and counted once (`dedupeSessions` also guards
+analysis if both exist).
+
+## Notes import parser — capabilities and limitations
+
+Understands: day headings (weekday names, `Day 2`, `UPPER BODY`, `#`, `:`),
+date headings (`12 Oct 2026`, `2026-10-12`, `12/10/2026`; a date without a year
+is never completed), exercise names (library names and aliases, custom names,
+ambiguous names offer choices), kg / lb, per side (`/side`, `a side`, `each side`),
+per dumbbell (`each hand`, `/dumbbell`, `dbs`, `each`), total (`total`, or
+machines that are total by default), bodyweight (`BW`), added load (`BW+10kg`),
+assistance, sets × reps (`3x8`, `3 × 8–12`, `3 sets of 8`, `3 sets × 8 reps`),
+rep lists (`8 8 7`, `9, 8, 8`, `8/8/7`, `× 9, 8, 8`), reversed notation (`10x3`
+is read as 3 sets of 10 **and flagged**), timed work (`3x45s`, `45s`, `1 min`),
+bullets, comments (attached to the exercise above; after a blank line, to the day),
+"not completed / skipped".
+
+**V0.5 additions.** Exercise *blocks* (a name line, then detail lines such as
+`27.5kg for 7 reps`, `4 × 6`, `76kg`, `Rest: 2 min`, combined by `mergeValues`);
+gym shorthand in names (`exerciseKey`: db, bb, OHP, lat pd, lats pull down, flat
+press…); a separate record of what was *done* (`performed`, `reps`, per-set
+`loads`) next to the plan (sets × rep range); per-set loads (`60x8, 65x6, 70x5`,
+`40/42.5/45kg x 8/6/5`, `Set 1: 100kg x 5`); `3x8 @ 60kg`; rest times saved to
+the exercise; RPE/RIR, warm-ups, drop sets, superset labels and bracketed notes
+kept as text; checkbox/emoji bullets; cardio and distance (distance is never
+turned into time); a unitless load takes the note's unit only when every other
+load agrees, and says so. A 35-note corpus test (`tests/unit/v5-notes-corpus.test.ts`)
+enforces three invariants on every note: no input line is lost, nothing is
+invented, and every guess is visible for review.
+
+Limitations: one exercise per line (`squats 3x5, bench 3x8` on one line is kept
+as text); supersets written `A + B` become one custom exercise; no fuzzy spelling
+correction (unknown names become custom exercises); no bar or plate weight is
+ever assumed; English only. Anything not understood is kept as note text and
+never used for analysis.
+
+## Performance analysis
+
+- Only the same exercise with the same loading convention is compared
+  (`comparableKey`); no bar weight is assumed and machines/Smith/dumbbells are
+  never treated as equivalent.
+- Change between two records: load up / reps up (best set, or total across the
+  same sets at the same load) / more sets / easier (RIR) / stable / lower.
+  `describeChange` explains it, e.g. "1 more rep in the first set at the same
+  recorded load (30 kg/side)." No percentages are claimed.
+- Status per exercise: *Improving* (last record improved), *Possible decline*
+  (last two below the earlier best — one bad session never qualifies),
+  *Possible plateau* (plateau rules below), *Stable*, *Not enough data* (< 2
+  records, missing loads, or not comparable).
+- Personal bests, milestones (new bests, heavier loads, more reps, weeks with
+  every planned session done — counted, never a streak — 4-week blocks, and a
+  bodyweight trend only when it matches the stated goal), weekly frequency.
+- Charts: working load, total reps, volume (only for total / per-side /
+  per-dumbbell, never across conventions), bodyweight, sessions per week.
+
+## Coaching logic
+
+- Weekly review (after confirming): sessions done of planned, per-exercise
+  change, then 2–4 sentences: what improved, what's stable, sessions completed,
+  and whether a change is justified. Rules: a plateau suggestion exists → say so
+  (nothing changes without Accept); a session was missed → "continue the
+  programme before considering a change"; otherwise "keep following" or "not
+  enough evidence". Built only from confirmed records; reproducible.
+- Plateau detection (unchanged V0.2 rules): ≥ 4 comparable sessions over ≥ 14
+  days in a 6-week window, no long gap, no improvement on the earlier best. Up
+  to two questions (sleep, effort, missed sessions, fatigue, food). Suggestions:
+  continue, check consistency, review recovery, lighter week (−1 set), widen the
+  rep range; programme changes only on Accept.
+- Training + nutrition context (V0.3) and the "short on time this week" planner
+  remain, behind Coach. Nutrition is never required.
+
+## PWA and native packaging
+
+See [`PWA_AND_NATIVE.md`](PWA_AND_NATIVE.md).

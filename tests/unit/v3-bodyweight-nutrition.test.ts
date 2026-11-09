@@ -8,7 +8,7 @@ import * as repo from '../../src/data/repo';
 import { bodyweightTrend, displayValue, entriesInRange, latestEntry, parseBodyweight, weeklyAverages } from '../../src/domain/bodyweight';
 import { dailyTotals, dietaryNotes, exclusionReason, type FuelPrefs, mealNutrition, setPortion, suggestDay, swapMeal } from '../../src/domain/meals';
 import { activityFactor, estimateEnergy, type EnergyInputs, goalTarget, macroSplit, mifflinStJeor, proteinRange, seedFromLifestyle, trainingEnergy, validateField } from '../../src/domain/nutrition';
-import { computeRpg } from '../../src/domain/rpg';
+import { milestones } from '../../src/domain/performance';
 import { bench, bodyweightEntry, completedSession, makeProfile, nutritionProfile, T0, TODAY, weeklyBodyweights } from '../fixtures/factories';
 
 const prefs = (over: Partial<FuelPrefs> = {}): FuelPrefs => ({ ...nutritionProfile(), ...over });
@@ -314,13 +314,10 @@ describe('V0.3 meals', () => {
     expect(dailyTotals(items)).toEqual({ kcal: 143, protein: 13, carbs: 1, fat: 10, counted: 1, total: 2, notCounted: ['Steamed chicken rice'] });
   });
 
-  it('T40 missing meals never trigger penalties (no XP effect from nutrition)', () => {
+  it('T40 missing meals never trigger penalties (nutrition is not an input to milestones)', () => {
     const sessions = [completedSession({ id: 'x', date: TODAY, exercises: [bench([{ load: 30, reps: 8 }])] })];
-    const base = { sessions, checkIns: [], recommendations: [], weekPlans: [], programme: null, reviewedWeeks: [], today: TODAY };
-    const a = computeRpg(base);
-    // Nothing nutrition-related is an RPG input, so skipping meals cannot change XP.
-    expect(computeRpg({ ...base }).level.totalXP).toBe(a.level.totalXP);
-    expect(a.events.some((e) => /meal|calorie|food/i.test(e.label))).toBe(false);
+    const m = milestones({ sessions, weeks: [], programme: null, bodyweights: [], profile: { goal: 'general', weightUnit: 'kg' }, today: TODAY });
+    expect(m.some((e) => /meal|calorie|food/i.test(`${e.title} ${e.detail}`))).toBe(false);
   });
 
   it('T41 nutrition preferences and meal plans survive backup and restore', async () => {

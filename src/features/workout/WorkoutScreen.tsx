@@ -2,7 +2,6 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { discardSession, finishSession, newId, updateActiveSession } from '../../data/repo';
 import { LOAD_TYPE_LABEL, loadStep, loadSuffix, usesLoad } from '../../domain/loads';
 import { MAX_DURATION_SEC, MAX_LOAD, MAX_REPS, parseMinutes } from '../../domain/logging';
-import { XP } from '../../domain/rpg';
 import type { SessionExercise, WorkoutSession } from '../../domain/types';
 import * as W from '../../domain/workout';
 import { useAnnounce } from '../../ui/Announcer';
@@ -23,7 +22,7 @@ export function WorkoutScreen() {
       <div className="screen">
         <h1 tabIndex={-1}>No workout in progress</h1>
         <p className="muted">Start your next session from Train.</p>
-        <a href="#/train" className="btn btn-primary">
+        <a href="#/plan" className="btn btn-primary">
           Go to Train
         </a>
       </div>
@@ -114,7 +113,7 @@ function Workout({ session }: { session: WorkoutSession }) {
   return (
     <div className="screen workout">
       <div className="wk-top">
-        <a href="#/train" className="btn btn-ghost btn-icon" aria-label="Back to Train (workout stays saved)">
+        <a href="#/plan" className="btn btn-ghost btn-icon" aria-label="Back to Plan (this log stays saved)">
           <IconBack />
         </a>
         <h1 tabIndex={-1} className="wk-title">
@@ -144,7 +143,7 @@ function Workout({ session }: { session: WorkoutSession }) {
 
       <div className="stack-sm">
         <div className="row between small">
-          <span className="teal strong num">
+          <span className="strong num">
             Exercise {position + 1} of {exercises.length}
           </span>
           <span className="muted num" data-testid="sets-done">
@@ -161,7 +160,7 @@ function Workout({ session }: { session: WorkoutSession }) {
         {ex && (
           <section className="card ex-card" aria-labelledby="ex-name">
             <div className="ex-head">
-              <div style={{ minWidth: 0 }}>
+              <div className="grow">
                 <h2 id="ex-name" className="ex-name" data-testid="exercise-name">
                   {ex.name}
                 </h2>
@@ -170,7 +169,7 @@ function Workout({ session }: { session: WorkoutSession }) {
                 </p>
                 <p className="xs faint">{LOAD_TYPE_LABEL[ex.loadType]}{usesLoad(ex.loadType) ? ` (${loadSuffix(ex.loadType, ex.unit)})` : ''}</p>
               </div>
-              {ex.priority && <span className="pill pill-pr">★ Priority</span>}
+              {ex.priority && <span className="pill pill-completed">★ Priority</span>}
             </div>
 
             <div className="keylift">
@@ -279,12 +278,6 @@ function Workout({ session }: { session: WorkoutSession }) {
               );
             })}
           </ol>
-          {data.profile.gamification && (
-            <span className="xp-hint" title="XP is awarded once, when you finish with at least one completed set.">
-              ★ +{XP.workout}
-              {session.source === 'programme' ? ` (+${XP.planned} planned)` : ''} XP on finish
-            </span>
-          )}
         </aside>
       </div>
 
@@ -340,10 +333,10 @@ function Workout({ session }: { session: WorkoutSession }) {
           onConfirm={async () => {
             await discardSession(session.id, clock.now());
             announce('Workout discarded. Nothing was saved to history.');
-            navigate('/train');
+            navigate('/plan');
           }}
         >
-          <p>Completed sets won't be saved to history and no XP is awarded. This can't be undone.</p>
+          <p>Completed sets won't be saved to history. This can't be undone.</p>
         </ConfirmDialog>
       )}
     </div>
@@ -374,7 +367,7 @@ function SetEditor({ ex, setId, index, onChange, onDelete }: { ex: SessionExerci
       ) : (
         <Stepper label="Reps" unit="reps" value={set.reps} step={1} min={1} decimals={0} onCommit={(v) => commit('reps', v)} error={errors.reps} />
       )}
-      <div className="row full" style={{ alignItems: 'flex-end' }}>
+      <div className="row full align-end">
         <div className="field grow">
           <label className="field-label xs" htmlFor={rirId}>
             RIR (optional, reps in reserve)

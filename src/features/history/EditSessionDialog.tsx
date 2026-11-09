@@ -15,7 +15,7 @@ interface DraftSet {
   measure: string;
 }
 
-/** Correct a completed workout. Trends, PRs, XP and achievements recalculate from the saved record. */
+/** Correct a completed workout. Trends, personal bests and reviews recalculate from the saved record. */
 export function EditSessionDialog({ session, onClose }: { session: WorkoutSession; onClose: () => void }) {
   const announce = useAnnounce();
   const dateId = useId();
@@ -103,7 +103,7 @@ export function EditSessionDialog({ session, onClose }: { session: WorkoutSessio
           </legend>
           {(drafts[e.key] ?? []).map((d, i) => (
             <div key={d.id} className="row">
-              <span className="set-num num" style={{ width: 22 }}>
+              <span className="set-num num">
                 {i + 1}
               </span>
               {usesLoad(e.loadType) && <input className="input input-num" aria-label={`${e.name} set ${i + 1} load (${loadSuffix(e.loadType, e.unit)})`} inputMode="decimal" value={d.load} onChange={(ev) => update(e.key, i, { load: ev.target.value })} />}

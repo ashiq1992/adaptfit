@@ -1,6 +1,16 @@
 import { writeFileSync } from 'node:fs';
 import { expect, type Page, type TestInfo } from '@playwright/test';
-import { buildSeedBackup, buildSeedBackupV3 } from './seed';
+import { addDays, localDateOf } from '../../src/domain/dates';
+import { buildSeedBackup, buildSeedBackupV3, SEED_TZ } from './seed';
+
+/** Seed mutation: remove workouts in the current week so it can be updated in the weekly sheet. */
+export function openThisWeek(b: ReturnType<typeof buildSeedBackup>) {
+  const today = localDateOf(new Date(), SEED_TZ);
+  const [y, m, d] = today.split('-').map(Number) as [number, number, number];
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  const monday = addDays(today, -((dow + 6) % 7));
+  b.data.sessions = b.data.sessions.filter((s) => !s.completedLocalDate || s.completedLocalDate < monday);
+}
 
 /** Collect uncaught page errors, console errors, and failed requests. */
 export function watchForErrors(page: Page): string[] {
@@ -15,35 +25,46 @@ export function watchForErrors(page: Page): string[] {
   return errors;
 }
 
-/** Restore the synthetic 8-week history from the welcome screen (exercises the real Restore UI). */
-export async function seed(page: Page, info: TestInfo, mutate?: (b: ReturnType<typeof buildSeedBackup>) => void, version: 2 | 3 = 2) {
+/**
+ * Restore the synthetic 8-week history from the welcome screen (exercises the
+ * real Restore UI and the V0.2/V0.3 → V0.4 restore migration).
+ */
+export async function seed(page: Page, info: TestInfo, mutate?: (b: ReturnType<typeof buildSeedBackup>) => void, version: 2 | 3 = 3) {
   const backup = version === 3 ? (buildSeedBackupV3() as unknown as ReturnType<typeof buildSeedBackup>) : buildSeedBackup();
   mutate?.(backup);
   const file = info.outputPath(`seed-${Math.random().toString(36).slice(2)}.json`);
   writeFileSync(file, JSON.stringify(backup));
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Welcome to AdaptFit' })).toBeVisible();
+  await page.getByText('Coming back? Restore a backup').click();
   await page.getByTestId('restore-input').setInputFiles(file);
   await page.getByRole('dialog').getByRole('button', { name: 'Restore backup' }).click();
-  await expect(page.getByRole('button', { name: /Start workout|Resume workout/ })).toBeVisible();
+  await expect(page.getByTestId('update-week')).toBeVisible();
   return backup;
 }
 
-/** Complete onboarding, choosing how to start the programme. */
-export async function onboard(page: Page, routine: 'Recommend a programme' | 'Skip for now' = 'Skip for now', character?: string) {
+export type StartChoice = 'Paste from Notes' | 'Choose a programme' | 'Write my own' | 'Skip for now';
+
+/** First run: units and goal, then how to start. */
+export async function onboard(page: Page, start: StartChoice = 'Skip for now') {
   await page.goto('/');
   await page.getByRole('button', { name: 'Get started' }).click();
-  await page.getByRole('button', { name: 'Next' }).click(); // goal
-  await page.getByText(routine, { exact: true }).click();
-  await page.getByRole('button', { name: 'Next' }).click(); // routine
-  await page.getByRole('button', { name: 'Next' }).click(); // schedule
-  await page.getByRole('button', { name: 'Continue' }).click(); // lifestyle (skipped)
-  if (character) await page.getByTestId('character-picker').getByText(character, { exact: true }).click();
-  await page.getByRole('button', { name: routine === 'Recommend a programme' ? 'Continue to programme questions' : 'Start training' }).click();
+  if (start === 'Skip for now') await page.getByRole('button', { name: 'Skip for now' }).click();
+  else await page.getByRole('button', { name: new RegExp(`^${start}`) }).click();
 }
 
-export async function startWorkout(page: Page) {
-  await page.getByRole('button', { name: 'Start workout' }).click();
+/** Open the current note at its first day. */
+export async function openNote(page: Page) {
+  await page.goto('/#/plan');
+  await page.getByTestId('today-card').click();
+  await expect(page.locator('.note-day').first()).toBeVisible();
+}
+
+/** Optional live logging from a day's menu. */
+export async function startLive(page: Page, dayName?: string) {
+  const day = dayName ? page.locator('.note-day', { has: page.getByRole('heading', { name: dayName }) }) : page.locator('.note-day').first();
+  await day.getByRole('button', { name: /^Options for/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Log sets live (optional)' }).click();
   await expect(page.getByTestId('exercise-name')).toBeVisible();
 }
 
@@ -59,7 +80,7 @@ export async function finishWorkout(page: Page, duration: 'timer' | 'manual' | '
     await dialog.getByLabel('Minutes').fill(minutes);
   } else if (duration === 'none') await dialog.getByText("Don't record a duration").click();
   await dialog.getByRole('button', { name: /^Finish (early|workout)$/ }).click();
-  await expect(page.getByText('Workout complete', { exact: true })).toBeVisible();
+  await expect(page.getByText('Workout saved', { exact: true })).toBeVisible();
 }
 
 export async function noHorizontalOverflow(page: Page) {
@@ -72,7 +93,6 @@ export async function noHorizontalOverflow(page: Page) {
  * fixed bottom navigation / action bar (nothing important is obscured).
  */
 export async function contentClearsFixedBars(page: Page, label = '') {
-  // Scroll to the bottom until the page height is stable (lazy content may still be rendering).
   await expect
     .poll(async () =>
       page.evaluate(async () => {
@@ -88,7 +108,7 @@ export async function contentClearsFixedBars(page: Page, label = '') {
     if (!main || !bar) return { ok: true, detail: 'no fixed bar' };
     const barRect = bar.getBoundingClientRect();
     if (barRect.width < window.innerWidth * 0.5) return { ok: true, detail: 'sidebar layout' };
-    const items = Array.from(main.querySelectorAll('button, a, p, h2, li')).filter((el) => (el as HTMLElement).checkVisibility() && !el.closest('.action-bar, .bottomnav'));
+    const items = Array.from(main.querySelectorAll('button, a, p, h2, li, input')).filter((el) => (el as HTMLElement).checkVisibility() && !el.closest('.action-bar, .bottomnav, .toast'));
     const lastBottom = Math.max(...items.map((el) => el.getBoundingClientRect().bottom));
     const worst = items.find((el) => Math.round(el.getBoundingClientRect().bottom) === Math.round(lastBottom));
     return { ok: lastBottom <= barRect.top + 1, detail: `content ends ${Math.round(lastBottom)}, bar top ${Math.round(barRect.top)} — ${worst?.outerHTML.slice(0, 140)}` };

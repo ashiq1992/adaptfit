@@ -35,10 +35,10 @@ export function restLabel(sec: number): string {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-/** "Nov 6" */
+/** "6 Nov" */
 export function shortDate(localDate: string): string {
   const [, m, d] = localDate.split('-').map(Number);
-  return `${MONTHS[(m ?? 1) - 1]} ${d}`;
+  return `${d} ${MONTHS[(m ?? 1) - 1]}`;
 }
 
 /** "Fri, 6 Nov 2026" */
@@ -65,3 +65,24 @@ export function clockTime(totalSec: number): string {
 }
 
 export const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+/** "Week of 9 November" */
+export function weekLabel(weekStart: string): string {
+  const [, m, d] = weekStart.split('-').map(Number) as [number, number, number];
+  return `Week of ${d} ${MONTHS_LONG[m - 1]}`;
+}
+
+/** "Tue 10 Nov" */
+export function dayDate(localDate: string): string {
+  const [y, m, d] = localDate.split('-').map(Number) as [number, number, number];
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return `${WEEKDAY_LABELS[dow]} ${d} ${MONTHS_LONG[m - 1]!.slice(0, 3)}`;
+}
+
+/** Query parameters after "?" in the hash route. */
+export function hashParams(): URLSearchParams {
+  const i = window.location.hash.indexOf('?');
+  return new URLSearchParams(i >= 0 ? window.location.hash.slice(i + 1) : '');
+}

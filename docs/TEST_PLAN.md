@@ -56,3 +56,31 @@ V0.3 IDs (T01–T80 from the Sprint 3 brief) are separate from the V0.2 IDs abov
 | T69–T80 | Nutrition opt-in and skip, calorie calculation and target edit, cook/buy and swaps, working-load entry, bodyweight, characters, Coach weekly summary, navigation, mobile nav overlap, offline Fuel/bodyweight, existing-user regression | `tests/e2e/v3.spec.ts` |
 | Accessibility | axe WCAG 2.1 AA now includes `#/coach/fuel` and `#/programmes/guide` | `tests/e2e/platform.spec.ts` |
 | Visual | 9 screens × 375/390/430/768/1280 | `tests/e2e/visual.spec.ts` → `docs/screenshots/v0.3/` |
+
+---
+
+# V0.4 test plan
+
+IDs T01–T64 are the Sprint 4 brief's (§20). Fixtures stay synthetic. V0.2/V0.3
+Playwright specs (`training`, `insights`, `v3`) tested screens that no longer
+exist; their still-valid checks were moved into `v4.spec.ts`, `platform.spec.ts`
+and the integration suite rather than deleted.
+
+| IDs | Area | Location |
+|---|---|---|
+| T01, T02 | Note opens in one tap; programmes display as note lines | `tests/e2e/v4.spec.ts`; `tests/unit/v4-notes.test.ts` |
+| T03, T04 | Inline edit updates the right exercise (keeps ID); free text intact; add / reorder / remove / edit as text | `v4-notes.test.ts`; `v4.spec.ts` |
+| T05–T07 | Auto-save, refresh mid-typing restores the draft, undo | `v4.spec.ts`; `tests/unit/v4-data.test.ts` |
+| T08 | Delete note needs confirmation; history kept | `v4.spec.ts`; `v4-data.test.ts` |
+| T09–T18 | Weekly: copy, unconfirmed until confirmed, unchanged performance recorded, skipped / not-recorded never complete, multi-edit, dates, history unchanged, no duplicate weeks, edits recalculate | `tests/unit/v4-weekly.test.ts`; `v4.spec.ts` |
+| T19–T26 | Parser: day headings, names, kg total / per side / per dumbbell, rep formats, ambiguity review, text preserved | `v4-notes.test.ts`; `v4.spec.ts` |
+| T27, T28 | Historical imports never invent dates; duplicates detected | `v4-data.test.ts`; `tests/integration/v2-flows.test.tsx` (T48) |
+| T29–T36 | Rep and load increases, stable, missing data, incompatible variations and conventions, bodyweight trend, corrections | `v4-weekly.test.ts`; `v3-bodyweight-nutrition.test.ts` (T35 bodyweight) |
+| T37–T44 | Reviews use confirmed data, insufficient data, one bad session, questions, approval, missed sessions, numbers match, nutrition optional | `v4-weekly.test.ts`; `v2-flows.test.tsx` (T43–T45); `v4.spec.ts` |
+| T45–T49, T56 | 375 / 390 / 430 px, keyboard, nav overlap, touch targets | `tests/e2e/platform.spec.ts` |
+| T50–T55 | Offline editing, drafts after reopening, manifest, standalone setup, transitions keep data, reduced motion | `platform.spec.ts`; `v4.spec.ts` (T54) |
+| T57–T63 | Migration, programme creation, live logging, strength history, bodyweight, nutrition, backup/restore | `v4-data.test.ts`; `v3-coach-character.test.tsx`; `platform.spec.ts`; `v2-flows.test.tsx`; `v4.spec.ts` |
+| T64 | Production build | `npm run check` / `npm run build` |
+| Accessibility | axe WCAG 2.1 AA on 11 screens plus note editor, weekly draft with review, import preview | `platform.spec.ts` |
+| Visual | 8 screens × 375/390/430/768/1280 | `tests/e2e/visual.spec.ts` → `docs/screenshots/v0.4/` |
+| Usability | Targets A–D tap and screen counts recorded as test annotations | `v4.spec.ts` |

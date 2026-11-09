@@ -1,51 +1,120 @@
-/* Inter (variable, Latin subset) bundled locally — no remote fonts. */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 100 900;
-  src: url('@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2-variations');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+/*
+ * AdaptFit design tokens — "Ink & Paper" (V0.5).
+ *
+ * Every colour has one job:
+ *   ink          the printed plan, text, primary actions
+ *   record       blue ink: what you actually did (your "handwriting")
+ *   hi           highlighter: progress only, always behind ink text
+ *   attention    pencil amber: "check this"
+ *   danger       margin red: errors and destructive actions
+ *
+ * Themes: Paper (default), Night, or follow the device. The theme is set on
+ * <html data-theme="paper|night|auto"> by the inline script in index.html.
+ */
+@import './fonts.css';
+
+:root {
+  --bg: #f6f2ea;
+  --surface: #fbf8f2;
+  --surface-2: #efe9dd;
+  --surface-3: #e6dfd0;
+  --rule: #e2dacb;
+  --border: #ddd4c2;
+  --border-strong: #8f877a;
+
+  --text: #1c1b18;
+  --text-2: #5c574d;
+  --text-faint: #6b655b;
+  --ink: #1c1b18;
+  --on-ink: #f6f2ea;
+  --ink-soft: rgba(28, 27, 24, 0.06);
+
+  --record: #24479a;
+  --hi: #e6f06a;
+  --hi-text: #1c1b18;
+  --attention: #94600f;
+  --attention-soft: rgba(148, 96, 15, 0.08);
+  --danger: #b0302a;
+  --danger-soft: rgba(176, 48, 42, 0.07);
+  --margin: rgba(176, 48, 42, 0.32);
+  --focus: #2f62d0;
+  --scrim: rgba(28, 27, 24, 0.42);
+  --bar-bg: rgba(246, 242, 234, 0.94);
+  --shadow: 0 1px 0 rgba(60, 50, 30, 0.06), 0 10px 30px rgba(60, 50, 30, 0.12);
+  --knob-shadow: rgba(28, 27, 24, 0.25);
+
+  color-scheme: light;
+}
+
+/* Night: the same system on warm charcoal. Kept in two blocks (explicit and
+   "follow the device") because CSS can't share a declaration list. */
+:root[data-theme='night'] {
+  --bg: #161513;
+  --surface: #1d1c19;
+  --surface-2: #25231f;
+  --surface-3: #2e2b26;
+  --rule: #2f2c27;
+  --border: #36332d;
+  --border-strong: #6e675b;
+  --text: #efeae0;
+  --text-2: #b4ad9f;
+  --text-faint: #9a9385;
+  --ink: #efeae0;
+  --on-ink: #161513;
+  --ink-soft: rgba(239, 234, 224, 0.07);
+  --record: #9db4f0;
+  --hi: #d9e45a;
+  --hi-text: #161513;
+  --attention: #e0b45c;
+  --attention-soft: rgba(224, 180, 92, 0.1);
+  --danger: #f08a84;
+  --danger-soft: rgba(240, 138, 132, 0.1);
+  --margin: rgba(240, 138, 132, 0.26);
+  --focus: #9db4f0;
+  --scrim: rgba(0, 0, 0, 0.6);
+  --bar-bg: rgba(22, 21, 19, 0.94);
+  --shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  --knob-shadow: rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='auto'] {
+    --bg: #161513;
+    --surface: #1d1c19;
+    --surface-2: #25231f;
+    --surface-3: #2e2b26;
+    --rule: #2f2c27;
+    --border: #36332d;
+    --border-strong: #6e675b;
+    --text: #efeae0;
+    --text-2: #b4ad9f;
+    --text-faint: #9a9385;
+    --ink: #efeae0;
+    --on-ink: #161513;
+    --ink-soft: rgba(239, 234, 224, 0.07);
+    --record: #9db4f0;
+    --hi: #d9e45a;
+    --hi-text: #161513;
+    --attention: #e0b45c;
+    --attention-soft: rgba(224, 180, 92, 0.1);
+    --danger: #f08a84;
+    --danger-soft: rgba(240, 138, 132, 0.1);
+    --margin: rgba(240, 138, 132, 0.26);
+    --focus: #9db4f0;
+    --scrim: rgba(0, 0, 0, 0.6);
+    --bar-bg: rgba(22, 21, 19, 0.94);
+    --shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+    --knob-shadow: rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
 }
 
 :root {
-  /* Brand — Premium Pixel Hybrid (exact tokens from the design brief) */
-  --graphite: #0f1116;
-  --midnight: #131f2e;
-  --teal: #00d6a3;
-  --amber: #f5b041;
-  --violet: #9b6dff;
-  --text: #f4f3ee;
-  --text-2: #9cb4bb;
+  /* Three voices: serif titles, native reading text, mono numbers. */
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-num: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
-  /* Derived surfaces */
-  --bg: var(--graphite);
-  --surface: var(--midnight);
-  --surface-2: #1a2a3d;
-  --surface-3: #22354b;
-  --border: rgba(156, 180, 187, 0.16);
-  --border-strong: rgba(156, 180, 187, 0.3);
-  --border-teal: rgba(0, 214, 163, 0.35);
-
-  --text-faint: #7f969d;
-  --teal-strong: #2ee6b8;
-  --teal-ink: #062018;
-  --teal-soft: rgba(0, 214, 163, 0.12);
-  --amber-soft: rgba(245, 176, 65, 0.14);
-  --violet-soft: rgba(155, 109, 255, 0.16);
-  --violet-text: #b897ff; /* AA on midnight for small text */
-  --danger: #ff7b7b;
-  --danger-soft: rgba(255, 123, 123, 0.14);
-  --focus: #9ecbff;
-
-  /* RPG stat accents */
-  --str: #ff8a5c;
-  --end: var(--teal);
-  --rec: #5fd36b;
-  --cons: var(--violet-text);
-
-  /* Type */
-  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --fs-xs: 0.75rem;
   --fs-sm: 0.875rem;
   --fs-md: 1rem;
@@ -54,23 +123,33 @@
   --fs-2xl: 1.75rem;
   --fs-3xl: 2.25rem;
 
-  /* Space & shape */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
   --space-5: 1.25rem;
   --space-6: 1.75rem;
-  --radius-sm: 10px;
-  --radius: 14px;
-  --radius-lg: 18px;
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 14px;
   --touch: 44px;
-  --nav-h: 68px;
-  --content-max: 1120px;
+  --nav-h: 64px;
+  --content-max: 720px;
 
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-  --glow: 0 0 0 1px var(--border-teal), 0 8px 28px rgba(0, 214, 163, 0.08);
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur: 160ms;
+}
 
-  color-scheme: dark;
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur: 0ms;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

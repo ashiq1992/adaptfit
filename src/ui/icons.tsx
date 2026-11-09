@@ -24,16 +24,25 @@ function I({ size = 22, className, children, fill }: P & { children: ReactNode; 
   );
 }
 
-/** AdaptFit mark: an upward chevron over a dumbbell (original glyph). */
+/**
+ * AdaptFit mark: ruled notebook lines where the last line steps up, with a
+ * highlighter stroke behind the step. Uses theme colours, so it works on
+ * Paper and Night.
+ */
 export const Logo = ({ size = 26 }: P) => (
-  <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-    <path d="M9 13 16 5l7 8" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
-    <rect x="3" y="16" width="4" height="12" rx="1.5" fill="currentColor" />
-    <rect x="8" y="18" width="3" height="8" rx="1" fill="currentColor" />
-    <rect x="11" y="21" width="10" height="2.6" rx="1" fill="currentColor" />
-    <rect x="21" y="18" width="3" height="8" rx="1" fill="currentColor" />
-    <rect x="25" y="16" width="4" height="12" rx="1.5" fill="currentColor" />
+  <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" className="logo">
+    <rect x="1" y="1" width="62" height="62" rx="15" fill="var(--surface)" stroke="var(--border)" strokeWidth="1.5" />
+    <path d="M16 20H48M16 30H48" stroke="var(--text)" strokeOpacity=".28" strokeWidth="2.6" strokeLinecap="round" />
+    <rect x="34" y="35" width="17" height="9" rx="2.5" fill="var(--hi)" />
+    <path d="M16 46H30L37 39H48" stroke="var(--text)" strokeWidth="3.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
+);
+
+/** "Adapt" upright, "Fit" italic, in the display serif. Reads as "AdaptFit". */
+export const Wordmark = ({ className = '' }: { className?: string }) => (
+  <span className={`wordmark ${className}`.trim()}>
+    Adapt<i>Fit</i>
+  </span>
 );
 
 export const IconTrain = (p: P) => (
@@ -265,5 +274,18 @@ export const IconGem = (p: P) => (
 export const IconScroll = (p: P) => (
   <I {...p}>
     <path d="M8 3h11v15a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2h11v2a3 3 0 0 0 3 3M8 3a3 3 0 0 0-3 3v10M11 8h5M11 12h5" />
+  </I>
+);
+export const IconPalette = (p: P) => (
+  <I {...p}>
+    <path d="M12 3a9 9 0 0 0 0 18c1.1 0 1.5-.8 1.5-1.5 0-.9-.7-1.3-.7-2.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.7-4-8.5-9-8.5Z" />
+    <circle cx="7.5" cy="11" r="1" />
+    <circle cx="10.5" cy="7.5" r="1" />
+    <circle cx="15" cy="7.5" r="1" />
+  </I>
+);
+export const IconDownload = (p: P) => (
+  <I {...p}>
+    <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
   </I>
 );

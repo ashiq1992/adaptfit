@@ -1,3 +1,8 @@
+/**
+ * Integration tests through the real App (SYNTHETIC data only).
+ * V0.2 flows (live logging, history, coaching, backup, import) are kept and
+ * now run through the V0.4 notes-first UI.
+ */
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -6,7 +11,6 @@ import { createBackup, parseBackupText, restoreBackup } from '../../src/data/bac
 import { createDb, setDb, type AdaptFitDB } from '../../src/data/db';
 import * as repo from '../../src/data/repo';
 import { addDays, localDateOf } from '../../src/domain/dates';
-import { computeRpg } from '../../src/domain/rpg';
 import * as W from '../../src/domain/workout';
 import { bench, completedSession, fourDayProgramme, legacySession, makeProfile, newIdFn } from '../fixtures/factories';
 
@@ -18,12 +22,12 @@ beforeEach(async () => {
   db = createDb(`adaptfit-v2-${Math.random().toString(36).slice(2)}`);
   setDb(db);
   await db.open();
-  window.location.hash = '#/train';
+  window.location.hash = '#/plan';
 });
 
-async function seedProgramme() {
+async function seedProgramme(loggingMode: 'weekly' | 'live' = 'live') {
   const programme = fourDayProgramme();
-  await db.profile.put(makeProfile({ goal: 'hypertrophy', timezone: 'UTC' }));
+  await db.profile.put(makeProfile({ goal: 'hypertrophy', timezone: 'UTC', loggingMode }));
   await db.programmes.put(programme);
   return programme;
 }
@@ -35,58 +39,60 @@ function benchHistory(programme: ReturnType<typeof fourDayProgramme>, reps: numb
   );
 }
 
+/** Optional live logging, started from the workout note. */
+async function startLive(user: ReturnType<typeof userEvent.setup>, p: ReturnType<typeof fourDayProgramme>) {
+  window.location.hash = `#/note/${p.id}/${p.days[0]!.id}`;
+  const buttons = await screen.findAllByRole('button', { name: 'Log live' });
+  await user.click(buttons[0]!);
+  await screen.findByTestId('exercise-name');
+}
+
 async function finishViaUi(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: 'Finish' }));
   const dialog = await screen.findByRole('dialog');
   await user.click(within(dialog).getByRole('button', { name: /^Finish (early|workout)$/ }));
-  await screen.findByText('Workout complete');
+  await screen.findByText('Workout saved');
 }
 
-describe('V0.2 integration', () => {
-  it('T39 create plan, log a session, view it in History', async () => {
+describe('Integration (V0.2 flows in the V0.4 UI)', () => {
+  it('T39 / T59 optional live logging still works and appears in History', async () => {
     const user = userEvent.setup();
-    await seedProgramme();
+    const p = await seedProgramme();
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'Upper Body A' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Start workout' }));
-    await screen.findByTestId('exercise-name');
+    await startLive(user, p);
     await user.click(screen.getByRole('button', { name: 'Complete set 1' }));
     await waitFor(async () => expect(W.completedSetCount((await repo.getActiveSession())!)).toBe(1));
     await finishViaUi(user);
-    window.location.hash = '#/train/history';
+    window.location.hash = '#/history';
     const item = await screen.findByTestId('history-item');
     expect(item).toHaveTextContent('Upper Body A');
-    expect(item).toHaveTextContent('Duration not recorded'); // one set in seconds is not a real duration
   });
 
-  it('T40 completing a workout updates Progress', async () => {
+  it('T40 a completed workout updates Progress', async () => {
     const user = userEvent.setup();
     const p = await seedProgramme();
     await db.sessions.bulkPut(benchHistory(p, [8]));
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: 'Start workout' }));
-    await screen.findByTestId('exercise-name');
+    await startLive(user, p);
     // Prefilled from last session (30 kg/side × 8). One tap per set.
     await user.click(screen.getByRole('button', { name: 'Complete set 1' }));
     await waitFor(async () => expect(W.completedSetCount((await repo.getActiveSession())!)).toBe(1));
     await finishViaUi(user);
     window.location.hash = '#/progress';
-    expect(await screen.findByTestId('metric-sessions')).toHaveTextContent('2');
+    expect(await screen.findByRole('link', { name: /Smith machine bench press/ })).toBeInTheDocument();
   });
 
-  it('T41 completing a planned workout awards XP once', async () => {
+  it('T41 finishing a live log records it exactly once (no game rewards)', async () => {
     const user = userEvent.setup();
-    await seedProgramme();
+    const p = await seedProgramme();
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: 'Start workout' }));
-    await screen.findByTestId('exercise-name');
+    await startLive(user, p);
     await user.click(screen.getByRole('button', { name: 'Complete set 1' }));
     await waitFor(async () => expect(W.completedSetCount((await repo.getActiveSession())!)).toBe(1));
     await finishViaUi(user);
-    expect(screen.getByTestId('xp-earned')).toHaveTextContent('+30 XP'); // 20 workout + 10 planned
-    const sessions = await db.sessions.toArray();
-    const rpg = computeRpg({ sessions: [...sessions, ...sessions], checkIns: [], recommendations: [], weekPlans: [], programme: null, reviewedWeeks: [], today });
-    expect(rpg.level.totalXP).toBe(30);
+    const completed = (await db.sessions.toArray()).filter((s) => s.state === 'completed');
+    expect(completed).toHaveLength(1);
+    expect(screen.queryByText(/XP/)).toBeNull();
   });
 
   it('T42 editing History recalculates statistics', async () => {
@@ -94,7 +100,7 @@ describe('V0.2 integration', () => {
     const p = await seedProgramme();
     const [a, b] = benchHistory(p, [8, 8]);
     await db.sessions.bulkPut([a!, b!]);
-    window.location.hash = '#/train/history';
+    window.location.hash = '#/history';
     render(<App />);
     const latest = (await screen.findAllByTestId('history-item'))[0]!;
     expect(latest).toHaveTextContent('Stable');
@@ -111,13 +117,11 @@ describe('V0.2 integration', () => {
     expect((await db.sessions.get(b!.id))!.editedAt).not.toBeNull();
   });
 
-  it('T43 sufficient history generates a plateau alert', async () => {
-    const user = userEvent.setup();
+  it('T43 sufficient history generates a plateau suggestion on Coach', async () => {
     const p = await seedProgramme();
     await db.sessions.bulkPut(benchHistory(p, [8, 8, 8, 8]));
     window.location.hash = '#/coach';
     render(<App />);
-    await user.click(await screen.findByRole('tab', { name: 'Insights' }));
     const card = await screen.findByTestId('recommendation');
     expect(card).toHaveTextContent('Possible plateau — additional context needed.');
     expect(card).toHaveTextContent('Smith machine bench press');
@@ -130,7 +134,6 @@ describe('V0.2 integration', () => {
     await db.sessions.bulkPut(benchHistory(p, [8, 8, 8, 8]));
     window.location.hash = '#/coach';
     render(<App />);
-    await user.click(await screen.findByRole('tab', { name: 'Insights' }));
     const card = await screen.findByTestId('recommendation');
     for (const g of within(card).getAllByRole('group')) await user.click(within(g).getByRole('button', { name: 'No' }));
     await waitFor(() => expect(screen.getByTestId('proposed-change')).toHaveTextContent('6–10 → 6–12'));
@@ -145,7 +148,6 @@ describe('V0.2 integration', () => {
     await db.sessions.bulkPut(benchHistory(p, [8, 8, 8, 8]));
     window.location.hash = '#/coach';
     render(<App />);
-    await user.click(await screen.findByRole('tab', { name: 'Insights' }));
     const card = await screen.findByTestId('recommendation');
     for (const g of within(card).getAllByRole('group')) await user.click(within(g).getByRole('button', { name: 'No' }));
     await waitFor(() => expect(screen.getByTestId('proposed-change')).toHaveTextContent('6–10 → 6–12'));
@@ -153,29 +155,27 @@ describe('V0.2 integration', () => {
     await waitFor(async () => expect((await db.programmes.get(p.id))!.days[0]!.exercises[0]!).toMatchObject({ repMin: 6, repMax: 12 }));
     const rec = (await db.recommendations.toArray())[0]!;
     expect(rec).toMatchObject({ status: 'accepted', appliedChange: { type: 'rep-range' } });
-    await user.click(screen.getByRole('tab', { name: 'History' }));
+    await user.click(screen.getByRole('tab', { name: 'Decisions' }));
     expect(await screen.findByTestId('rec-history-item')).toHaveTextContent('accepted');
   });
 
-  it('T46 export and restore reproduce training and character data', async () => {
+  it('T46 / T63 export and restore reproduce training data exactly', async () => {
     const p = await seedProgramme();
     await db.sessions.bulkPut(benchHistory(p, [7, 8, 9]));
     await db.measurements.put({ id: 'm1', localDate: today, bodyweightKg: 75, waistCm: null, note: '', createdAt: new Date().toISOString() });
     await repo.markWeekReviewed('2026-01-05');
-    const rpgOf = async () => computeRpg({ sessions: await db.sessions.toArray(), checkIns: await db.checkIns.toArray(), recommendations: [], weekPlans: [], programme: (await db.programmes.toArray())[0] ?? null, reviewedWeeks: await repo.getReviewedWeeks(), today });
-    const before = { rpg: await rpgOf(), programmes: await db.programmes.toArray(), measurements: await db.measurements.toArray() };
+    const snapshot = async () => ({ sessions: await db.sessions.orderBy('id').toArray(), programmes: await db.programmes.toArray(), measurements: await db.measurements.toArray(), profile: await db.profile.get('me'), reviewed: await repo.getReviewedWeeks() });
+    const before = await snapshot();
     const json = JSON.stringify(await createBackup(new Date()));
     await repo.resetAllData();
     expect(await db.sessions.count()).toBe(0);
     const parsed = parseBackupText(json);
     if (!parsed.ok) throw new Error(parsed.error);
     await restoreBackup(parsed.backup);
-    expect(await db.programmes.toArray()).toEqual(before.programmes);
-    expect(await db.measurements.toArray()).toEqual(before.measurements);
-    expect(await rpgOf()).toEqual(before.rpg);
+    expect(await snapshot()).toEqual(before);
   });
 
-  it('T47 an unfinished workout can be resumed', async () => {
+  it('T47 an unfinished live log can be resumed', async () => {
     const user = userEvent.setup();
     const p = await seedProgramme();
     let s = W.sessionFromDay({ id: 'draft', now: new Date(), newId: newIdFn, programme: p, day: p.days[0]!, history: [], unit: 'kg', checkIn: null });
@@ -183,51 +183,58 @@ describe('V0.2 integration', () => {
     s = W.completeSet(W.updateSetValues(s, ex.key, ex.sets[0]!.id, { load: 32.5 }, new Date()), ex.key, ex.sets[0]!.id, new Date());
     s = W.setPosition(s, 1, new Date());
     await db.sessions.put(s);
+    window.location.hash = `#/note/${p.id}`;
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: 'Resume workout' }));
+    // Starting live logging again resumes the unfinished one instead of creating a second.
+    const buttons = await screen.findAllByRole('button', { name: 'Log live' });
+    await user.click(buttons[0]!);
     expect(await screen.findByTestId('exercise-name')).toHaveTextContent('Lat pulldown');
     expect(screen.getByTestId('sets-done')).toHaveTextContent('1/');
     await user.click(screen.getByRole('button', { name: /Smith machine bench press/ }));
     expect(await screen.findByRole('button', { name: /Set 1 done/ })).toHaveAccessibleName(/32\.5 kg\/side/);
+    expect((await db.sessions.toArray()).filter((x) => x.state === 'active')).toHaveLength(1);
   });
 
-  it('T48 importing notes saves exactly the confirmed values and skips duplicates', async () => {
+  it('T48 / T27 / T28 importing past workouts needs a date, saves exactly what was read, and rejects duplicates', async () => {
     const user = userEvent.setup();
-    await seedProgramme();
+    await seedProgramme('weekly');
     window.location.hash = '#/import';
     render(<App />);
-    const box = await screen.findByLabelText('Workout notes');
+    const box = await screen.findByLabelText('Workout note');
     await user.click(box);
-    await user.paste(`${ago(3)}\nSmith Bench 30 kg/side 3x8\nPull-ups BW 10, 9, 8\nBench 60 kg 5x5`);
-    await user.click(screen.getByRole('button', { name: 'Review import' }));
-    const rows = await screen.findAllByTestId('import-row');
-    expect(rows).toHaveLength(3);
-    expect(screen.getByRole('button', { name: /^Save/ })).toBeDisabled(); // "Bench" needs a variation and convention
-    await user.click(within(rows[2]!).getByRole('checkbox', { name: 'Include' }));
-    await user.click(screen.getByRole('button', { name: 'Save 2 exercise records' }));
-    expect(await screen.findByTestId('import-result')).toHaveTextContent('1 workout imported.');
+    await user.paste('Push day\nSmith Bench 30 kg/side 3x8\nPull-ups BW 10, 9, 8');
+    await user.click(screen.getByText('Add to my training history'));
+    const save = screen.getByTestId('import-save');
+    expect(save).toBeDisabled(); // no date yet — never invented
+    expect(screen.getByText(/Choose the date these workouts were done/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Date of these workouts'), ago(3));
+    await waitFor(() => expect(screen.getByTestId('import-save')).toBeEnabled());
+    await user.click(screen.getByTestId('import-save'));
+    await waitFor(async () => expect(await db.sessions.count()).toBe(1));
     const [s] = await db.sessions.toArray();
     expect(s).toMatchObject({ source: 'import', completedLocalDate: ago(3), durationSec: null });
     expect(s!.exercises.map((e) => [e.exerciseId, e.loadType, e.sets.map((x) => [x.load, x.reps])])).toEqual([
       ['smith-bench-press', 'per-side', [[30, 8], [30, 8], [30, 8]]],
       ['pull-up', 'bodyweight', [[null, 10], [null, 9], [null, 8]]],
     ]);
-    // Import the same notes again → duplicate skipped.
-    await user.clear(screen.getByLabelText('Workout notes'));
-    await user.click(screen.getByLabelText('Workout notes'));
-    await user.paste(`${ago(3)}\nSmith Bench 30 kg/side 3x8\nPull-ups BW 10, 9, 8`);
-    await user.click(screen.getByRole('button', { name: 'Review import' }));
-    await user.click(await screen.findByRole('button', { name: 'Save 2 exercise records' }));
-    await waitFor(() => expect(screen.getByTestId('import-result')).toHaveTextContent('0 workouts imported. 1 duplicate was skipped.'));
+    // The same note again is detected as a duplicate and can't be saved.
+    window.location.hash = '#/plan';
+    window.location.hash = '#/import';
+    const box2 = await screen.findByLabelText('Workout note');
+    await user.click(box2);
+    await user.paste('Push day\nSmith Bench 30 kg/side 3x8\nPull-ups BW 10, 9, 8');
+    await user.click(screen.getByText('Add to my training history'));
+    expect(await screen.findByText(/You imported this exact note/)).toBeInTheDocument();
+    expect(screen.getByTestId('import-save')).toBeDisabled();
     expect(await db.sessions.count()).toBe(1);
   });
 });
 
-describe('Database migration v2 → v3', () => {
+describe('Database migration v2 → current', () => {
   it('T37 upgrading preserves V0.1 records and keeps a verbatim copy', async () => {
     const Dexie = (await import('dexie')).default;
     const { SCHEMA_V2, DB_VERSION } = await import('../../src/data/db');
-        const name = `adaptfit-upgrade-${Math.random().toString(36).slice(2)}`;
+    const name = `adaptfit-upgrade-${Math.random().toString(36).slice(2)}`;
     const v2 = new Dexie(name);
     v2.version(2).stores(SCHEMA_V2);
     await v2.open();
@@ -240,7 +247,7 @@ describe('Database migration v2 → v3', () => {
     const upgraded = createDb(name);
     await upgraded.open();
     expect(upgraded.verno).toBe(DB_VERSION);
-    expect(await upgraded.profile.get('me')).toMatchObject({ goal: 'strength', gamification: true, lifestyle: { work: null } });
+    expect(await upgraded.profile.get('me')).toMatchObject({ goal: 'strength', gamification: true, lifestyle: { work: null }, loggingMode: 'weekly' });
     expect(await upgraded.checkIns.get('2026-02-01')).toMatchObject({ sleepHours: null });
     const s = (await upgraded.sessions.get('legacy-1'))!;
     expect(s).toMatchObject({ schemaVersion: 3, state: 'completed', source: 'legacy', durationSec: null });

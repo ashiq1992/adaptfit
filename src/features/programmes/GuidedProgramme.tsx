@@ -1,10 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { EXERCISES_BY_ID } from '../../content/exercises';
-import { EQUIPMENT_ACCESS_LABEL, PROGRAMME_TEMPLATES } from '../../content/programmeLibrary';
+import { EQUIPMENT_ACCESS_LABEL, PROGRAMME_TEMPLATES, TEMPLATES_BY_ID } from '../../content/programmeLibrary';
 import { SOURCES_BY_ID } from '../../content/sources';
-import { newId, saveNutrition, saveProfile, saveProgramme } from '../../data/repo';
-import { defaultAnswers, type GuidedAnswers, modesFromAccess, programmeFromRecommendation, recommendProgrammes, swapExercise, type TemplateRecommendation } from '../../domain/guided';
-import { emptyNutritionProfile, seedFromLifestyle } from '../../domain/nutrition';
+import { newId, saveProfile, saveProgramme } from '../../data/repo';
+import { defaultAnswers, evaluateTemplate, type GuidedAnswers, modesFromAccess, programmeFromRecommendation, recommendProgrammes, swapExercise, type TemplateRecommendation } from '../../domain/guided';
 import { estimateDayMinutes, validateProgramme } from '../../domain/programme';
 import { plural } from '../../domain/schedule';
 import { EQUIPMENT_ACCESS, MUSCLE_PRIORITIES, type MusclePriority, type Programme, type ProgrammeDay, type ProgrammeExercise, SESSION_LENGTHS } from '../../domain/types';
@@ -14,8 +13,9 @@ import { clock } from '../../ui/clock';
 import { DayPicker, Switch } from '../../ui/controls';
 import { useApp } from '../../ui/DataContext';
 import { navigate } from '../../ui/hooks';
-import { IconBack, IconCheck, IconClock, IconInfo } from '../../ui/icons';
-import { repRange } from '../format';
+import { IconCheck, IconClock, IconInfo } from '../../ui/icons';
+import { ScreenHeader } from '../../ui/ScreenHeader';
+import { hashParams, repRange } from '../format';
 import { EXPERIENCE_CHOICES, GOAL_CHOICES } from '../onboarding/choices';
 import { PlannedLoadField } from './PlannedLoadField';
 
@@ -44,6 +44,17 @@ export function GuidedProgramme() {
   const [errors, setErrors] = useState<string[]>([]);
   const [saved, setSaved] = useState<Programme | null>(null);
   const set = (patch: Partial<GuidedAnswers>) => setAnswers((a) => ({ ...a, ...patch }));
+
+  // Opened from the library with a chosen template: go straight to preview and customise.
+  const preselected = useRef(false);
+  useEffect(() => {
+    if (preselected.current) return;
+    preselected.current = true;
+    const id = hashParams().get('template');
+    const t = id ? TEMPLATES_BY_ID.get(id) : undefined;
+    if (t) choose(evaluateTemplate(t, answers, newId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const results = useMemo(() => (step === 'results' || step === 'customise' ? recommendProgrammes(answers, newId) : []), [answers, step]);
   const qIndex = QUESTIONS.indexOf(step);
@@ -92,27 +103,19 @@ export function GuidedProgramme() {
     go('saved');
   };
 
-  const fuelChoice = async (yes: boolean) => {
-    const now = clock.now();
-    const n = seedFromLifestyle(data.nutrition ?? emptyNutritionProfile(now), data.profile.lifestyle);
-    await saveNutrition({ ...n, status: yes ? 'in-progress' : 'declined', updatedAt: now.toISOString() });
-    navigate(yes ? '/coach/fuel' : '/train');
-  };
-
   return (
     <div className="screen">
-      <div className="row">
-        <a href={data.programmes.length ? '#/settings' : '#/train'} className="btn btn-ghost btn-icon" aria-label="Leave programme recommendation">
-          <IconBack />
-        </a>
-        <h1 tabIndex={-1}>{step === 'results' ? 'Recommended programmes' : step === 'customise' ? 'Preview and customise' : step === 'saved' ? 'Programme saved' : 'Recommend a programme'}</h1>
-      </div>
-
-      {qIndex >= 0 && (
-        <p className="xs muted num" aria-live="polite">
-          Question {qIndex + 1} of {QUESTIONS.length} · answers already in your profile are filled in
-        </p>
-      )}
+      <ScreenHeader
+        back={{ href: '#/library', label: 'Programmes' }}
+        title={step === 'results' ? 'Recommended programmes' : step === 'customise' ? 'Preview and customise' : step === 'saved' ? 'Programme saved' : 'Recommend a programme'}
+        subtitle={
+          qIndex >= 0 ? (
+            <span aria-live="polite">
+              Question {qIndex + 1} of {QUESTIONS.length} · answers already in your profile are filled in
+            </span>
+          ) : undefined
+        }
+      />
 
       {step === 'goal' && (
         <section className="card">
@@ -200,7 +203,7 @@ export function GuidedProgramme() {
             Based on {answers.daysPerWeek} {plural(answers.daysPerWeek, 'day')} a week, {answers.sessionMinutes}-minute sessions, and {EQUIPMENT_ACCESS_LABEL[answers.equipment].toLowerCase()}. Ranked by fit — nothing changes until you save.
           </p>
           {data.activeProgramme && (
-            <p className="xs teal" data-testid="keeps-existing">
+            <p className="xs muted" data-testid="keeps-existing">
               Your current programme ({data.activeProgramme.name}) stays as it is. A new programme is added alongside it.
             </p>
           )}
@@ -254,19 +257,19 @@ export function GuidedProgramme() {
               onChange={setActivate}
             />
             {errors.length > 0 && (
-              <ul className="bullet-list" role="alert" style={{ color: 'var(--danger)' }}>
+              <ul className="bullet-list error-list" role="alert">
                 {errors.map((e) => (
                   <li key={e}>{e}</li>
                 ))}
               </ul>
             )}
             <button type="button" className="btn btn-primary btn-lg btn-block" onClick={save}>
-              Save programme
+              Save as workout note
             </button>
             <button type="button" className="btn btn-ghost btn-block" onClick={() => go('results')}>
               Back to recommendations
             </button>
-            <p className="xs muted">You can edit everything later in Settings → Training programmes. Past workouts are never changed.</p>
+            <p className="xs muted">You can edit everything later directly in the note. Past workouts are never changed.</p>
           </section>
         </>
       )}
@@ -277,39 +280,16 @@ export function GuidedProgramme() {
             <IconCheck />
             <div>
               <span className="strong">{saved.name} saved</span>
-              <p className="small muted">{saved.isActive ? 'Train now follows this programme.' : 'Saved alongside your current programme; switch any time in Settings.'}</p>
+              <p className="small muted">{saved.isActive ? 'It’s now your current plan, written as a workout note.' : 'Saved as a workout note alongside your current plan.'}</p>
             </div>
           </section>
-          {data.nutrition?.status === 'complete' ? (
-            <button type="button" className="btn btn-primary btn-lg btn-block" onClick={() => navigate('/train')}>
-              Continue to Train
-            </button>
-          ) : (
-            <FuelPrompt onChoose={fuelChoice} />
-          )}
+          <button type="button" className="btn btn-primary btn-lg btn-block" onClick={() => navigate(`/note/${encodeURIComponent(saved.id)}`)} data-testid="open-note">
+            Open workout note
+          </button>
+          <p className="xs muted">Optional: calorie and protein targets are in Coach → Fuel whenever you want them.</p>
         </>
       )}
     </div>
-  );
-}
-
-export function FuelPrompt({ onChoose }: { onChoose: (yes: boolean) => void }) {
-  return (
-    <section className="card card-glow" aria-labelledby="fuel-prompt" data-testid="fuel-prompt">
-      <span className="eyebrow">AdaptFit Fuel · optional</span>
-      <h2 id="fuel-prompt" className="card-title">
-        Would you like AdaptFit to calculate your calorie and protein needs and recommend meals that fit your training?
-      </h2>
-      <p className="small muted">Takes about two minutes, reuses what you've already told AdaptFit, and never requires tracking meals. You can set it up later in Coach or Settings.</p>
-      <div className="row wrap">
-        <button type="button" className="btn btn-primary btn-grow" onClick={() => onChoose(true)}>
-          Yes, personalise my nutrition
-        </button>
-        <button type="button" className="btn btn-tertiary btn-grow" onClick={() => onChoose(false)}>
-          Not now
-        </button>
-      </div>
-    </section>
   );
 }
 
@@ -357,7 +337,7 @@ function RecommendationCard({ rec, rank, onChoose }: { rec: TemplateRecommendati
       <details className="disclosure">
         <summary>Full routine and weekly distribution</summary>
         {rec.days.map((d) => (
-          <div key={d.id} className="stack-sm" style={{ marginTop: 8 }}>
+          <div key={d.id} className="stack-sm mt-2">
             <span className="strong small">
               {d.name} <span className="muted num">· ~{estimateDayMinutes(d)} min</span>
             </span>
@@ -375,7 +355,7 @@ function RecommendationCard({ rec, rank, onChoose }: { rec: TemplateRecommendati
             </ul>
           </div>
         ))}
-        <span className="section-label" style={{ marginTop: 12, display: 'block' }}>
+        <span className="section-label section-label-block mt-3">
           Expected working sets per week
         </span>
         <ul className="dist-list" aria-label="Expected weekly sets by muscle group">
@@ -439,12 +419,12 @@ function CustomiseDay({ day, options, unit, onChange }: { day: ProgrammeDay; opt
       <summary className="row between">
         <span>
           <span className="strong">{day.name}</span>
-          <span className="xs muted num" style={{ display: 'block' }}>
+          <span className="xs muted num block">
             {day.exercises.length} exercises · ~{estimateDayMinutes(day)} min
           </span>
         </span>
       </summary>
-      <div className="stack" style={{ marginTop: 12 }}>
+      <div className="stack mt-3">
         {day.exercises.map((e) => {
           const alts = (options[e.id] ?? []).filter((id) => id !== e.exerciseId);
           return (
@@ -454,7 +434,7 @@ function CustomiseDay({ day, options, unit, onChange }: { day: ProgrammeDay; opt
                   {e.name} {e.priority && <span className="prio">★ priority</span>}
                 </span>
                 {alts.length > 0 && (
-                  <label className="row xs" style={{ gap: 6 }}>
+                  <label className="row xs">
                     <span className="muted">Swap</span>
                     <select className="select select-sm" value="" aria-label={`Swap ${e.name}`} onChange={(ev) => ev.target.value && onChange(swapExercise(day, e.id, ev.target.value))}>
                       <option value="">Choose…</option>

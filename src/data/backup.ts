@@ -8,10 +8,13 @@ import type {
   CustomExercise,
   Measurement,
   MealPlan,
+  NoteRevision,
   NutritionProfile,
   Profile,
   Programme,
+  TrainingWeek,
   WeekPlan,
+  WorkoutImportRecord,
   WorkoutSession,
 } from '../domain/types';
 import { isCompletedSet } from '../domain/workout';
@@ -27,21 +30,26 @@ import {
   legacySessionSchema,
   mealPlanSchema,
   measurementSchema,
+  noteRevisionSchema,
   nutritionSchema,
   profileSchema,
   profileSchemaV2,
+  profileSchemaV3,
   programmeSchema,
   programmeSchemaV2,
+  programmeSchemaV3,
   recommendationSchema,
   sessionSchema,
+  trainingWeekSchema,
   weekPlanSchema,
+  workoutImportSchema,
 } from './schemas';
 
 export { MAX_BACKUP_BYTES } from './backupLimits';
 
 export const BACKUP_FORMAT = 'adaptfit-backup';
-export const BACKUP_VERSION = 3;
-export const SUPPORTED_BACKUP_VERSIONS: readonly number[] = [1, 2, 3];
+export const BACKUP_VERSION = 4;
+export const SUPPORTED_BACKUP_VERSIONS: readonly number[] = [1, 2, 3, 4];
 
 const v1Schema = z.object({
   format: z.literal(BACKUP_FORMAT),
@@ -69,15 +77,11 @@ const v2Data = z.object({
 
 const v2Schema = z.object({ format: z.literal(BACKUP_FORMAT), version: z.literal(2), exportedAt: z.iso.datetime(), data: v2Data });
 
-const v3Schema = z.object({
-  format: z.literal(BACKUP_FORMAT),
-  version: z.literal(3),
-  exportedAt: z.iso.datetime(),
-  data: z.object({
-    profile: profileSchema.nullable(),
+const v3Data = z.object({
+    profile: profileSchemaV3.nullable(),
     checkIns: z.array(checkInSchema).max(10_000),
     sessions: z.array(sessionSchema).max(10_000),
-    programmes: z.array(programmeSchema).max(100),
+    programmes: z.array(programmeSchemaV3).max(100),
     customExercises: z.array(customExerciseSchema).max(1000),
     recommendations: z.array(recommendationSchema).max(5000),
     weekPlans: z.array(weekPlanSchema).max(1000),
@@ -87,6 +91,20 @@ const v3Schema = z.object({
     bodyweights: z.array(bodyweightSchema).max(20_000),
     nutrition: nutritionSchema.nullable(),
     mealPlans: z.array(mealPlanSchema).max(5000),
+});
+
+const v3Schema = z.object({ format: z.literal(BACKUP_FORMAT), version: z.literal(3), exportedAt: z.iso.datetime(), data: v3Data });
+
+const v4Schema = z.object({
+  format: z.literal(BACKUP_FORMAT),
+  version: z.literal(4),
+  exportedAt: z.iso.datetime(),
+  data: v3Data.extend({
+    profile: profileSchema.nullable(),
+    programmes: z.array(programmeSchema).max(100),
+    trainingWeeks: z.array(trainingWeekSchema).max(2000),
+    noteRevisions: z.array(noteRevisionSchema).max(5000),
+    imports: z.array(workoutImportSchema).max(2000),
   }),
 });
 
@@ -104,6 +122,9 @@ export interface BackupData {
   bodyweights: BodyweightEntry[];
   nutrition: NutritionProfile | null;
   mealPlans: MealPlan[];
+  trainingWeeks: TrainingWeek[];
+  noteRevisions: NoteRevision[];
+  imports: WorkoutImportRecord[];
 }
 
 export interface Backup {
@@ -123,6 +144,7 @@ export interface BackupSummary {
   programmes: number;
   bodyweights: number;
   hasNutrition: boolean;
+  confirmedWeeks: number;
 }
 
 export type BackupParseResult = { ok: true; backup: Backup; summary: BackupSummary } | { ok: false; error: string };
@@ -149,6 +171,13 @@ export function checkBackupConsistency(d: BackupData): string | null {
   if (dupes(d.measurements, (m) => m.id)) return 'Duplicate measurement IDs found.';
   if (dupes(d.bodyweights, (b) => b.id)) return 'Duplicate bodyweight IDs found.';
   if (dupes(d.mealPlans, (m) => m.localDate)) return 'Duplicate meal plans found.';
+  if (dupes(d.trainingWeeks, (w) => w.weekStart)) return 'Duplicate weekly records found.';
+  if (dupes(d.noteRevisions, (r) => r.id)) return 'Duplicate note revisions found.';
+  if (dupes(d.imports, (r) => r.id)) return 'Duplicate import records found.';
+  for (const w of d.trainingWeeks) {
+    if (dupes(w.sessions, (s) => s.id)) return `The week of ${w.weekStart} has duplicate sessions.`;
+    for (const s of w.sessions) if ((s.status === 'completed' || s.status === 'partial') && w.status === 'confirmed' && !s.localDate) return `A confirmed session in the week of ${w.weekStart} has no date.`;
+  }
   if (d.programmes.filter((p) => p.isActive).length > 1) return 'More than one programme is marked active.';
   for (const p of d.programmes) {
     if (dupes(p.days, (x) => x.id)) return `Programme "${p.name}" has duplicate day IDs.`;
@@ -224,6 +253,7 @@ function summarize(b: Backup, sourceVersion: number): BackupSummary {
     programmes: b.data.programmes.length,
     bodyweights: b.data.bodyweights.length,
     hasNutrition: b.data.nutrition !== null && b.data.nutrition.status !== 'not-asked',
+    confirmedWeeks: b.data.trainingWeeks.filter((w) => w.status === 'confirmed').length,
   };
 }
 
@@ -272,6 +302,7 @@ export function parseBackupText(text: string): BackupParseResult {
         bodyweights: [],
         nutrition: null,
         mealPlans: [],
+        ...EMPTY_V4,
       },
     };
     const consistency = checkBackupConsistency(backup.data);
@@ -297,6 +328,7 @@ export function parseBackupText(text: string): BackupParseResult {
         bodyweights: measurements.map(bodyweightFromMeasurement).filter((b): b is BodyweightEntry => b !== null),
         nutrition: null,
         mealPlans: [],
+        ...EMPTY_V4,
       },
     };
     const consistency = checkBackupConsistency(backup.data);
@@ -304,13 +336,36 @@ export function parseBackupText(text: string): BackupParseResult {
     return { ok: true, backup, summary: summarize(backup, 2) };
   }
 
-  const parsed = v3Schema.safeParse(raw);
+  if (header.version === 3) {
+    const parsed = v3Schema.safeParse(raw);
+    if (!parsed.success) return fail(describe(parsed.error.issues));
+    const d = parsed.data.data;
+    // V0.3 → V0.4: add the note fields, exactly like the database upgrade.
+    const backup: Backup = {
+      format: BACKUP_FORMAT,
+      version: BACKUP_VERSION,
+      exportedAt: parsed.data.exportedAt,
+      data: {
+        ...(d as unknown as Omit<BackupData, 'profile' | 'programmes' | keyof typeof EMPTY_V4>),
+        profile: d.profile ? migrateProfile(d.profile as Profile) : null,
+        programmes: (d.programmes as Programme[]).map(migrateProgramme),
+        ...EMPTY_V4,
+      },
+    };
+    const consistency = checkBackupConsistency(backup.data);
+    if (consistency) return fail(consistency);
+    return { ok: true, backup, summary: summarize(backup, 3) };
+  }
+
+  const parsed = v4Schema.safeParse(raw);
   if (!parsed.success) return fail(describe(parsed.error.issues));
   const backup = parsed.data as unknown as Backup;
   const consistency = checkBackupConsistency(backup.data);
   if (consistency) return fail(consistency);
-  return { ok: true, backup, summary: summarize(backup, 3) };
+  return { ok: true, backup, summary: summarize(backup, 4) };
 }
+
+const EMPTY_V4 = { trainingWeeks: [] as TrainingWeek[], noteRevisions: [] as NoteRevision[], imports: [] as WorkoutImportRecord[] };
 
 /** Size-limit before reading, then validate. */
 export async function readBackupFile(file: Blob): Promise<BackupParseResult> {
@@ -345,6 +400,9 @@ export async function createBackup(now: Date): Promise<Backup> {
         bodyweights: await db.bodyweights.orderBy('id').toArray(),
         nutrition: (await db.nutrition.get('me')) ?? null,
         mealPlans: await db.mealPlans.orderBy('localDate').toArray(),
+        trainingWeeks: await db.trainingWeeks.orderBy('weekStart').toArray(),
+        noteRevisions: await db.noteRevisions.orderBy('id').toArray(),
+        imports: await db.imports.orderBy('id').toArray(),
       },
     }));
   } catch (err) {
@@ -380,6 +438,9 @@ export async function restoreBackup(backup: Backup): Promise<void> {
       await db.bodyweights.bulkAdd(d.bodyweights);
       if (d.nutrition) await db.nutrition.add(d.nutrition);
       await db.mealPlans.bulkAdd(d.mealPlans);
+      await db.trainingWeeks.bulkAdd(d.trainingWeeks);
+      await db.noteRevisions.bulkAdd(d.noteRevisions);
+      await db.imports.bulkAdd(d.imports);
       if (d.reviewedWeeks.length) await db.meta.put({ key: 'reviewedWeeks', value: d.reviewedWeeks });
     });
   } catch (err) {

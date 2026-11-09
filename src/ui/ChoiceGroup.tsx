@@ -13,7 +13,7 @@ interface SingleProps<T extends string | number> {
   choices: readonly Choice<T>[];
   value: T;
   onChange: (value: T) => void;
-  layout?: 'chips' | 'cards';
+  layout?: 'chips' | 'cards' | 'row';
   description?: string;
 }
 

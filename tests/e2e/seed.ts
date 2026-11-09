@@ -20,7 +20,7 @@ export function buildSeedBackup(now = new Date(), weeks = 8) {
   const start = addDays(today, -weeks * 7 + 1);
   const programme = starterUpperLower(() => id('p'), new Date(`${addDays(start, -3)}T08:00:00Z`));
   // A V0.2-shaped profile: this seed deliberately exercises the V0.2 → V0.3 restore migration.
-  const profile: Omit<Profile, 'character' | 'trainingPrefs'> = {
+  const profile: Omit<Profile, 'character' | 'trainingPrefs' | 'loggingMode' | 'notifications'> = {
     id: 'me',
     goal: 'hypertrophy',
     experience: 'intermediate',

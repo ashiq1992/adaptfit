@@ -1,7 +1,11 @@
 /// <reference types="vitest/config" />
+import { readFileSync } from 'node:fs';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+
+/** App version shown on the Admin page (from package.json, read at build time). */
+const APP_VERSION = (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }).version;
 
 /** Strict CSP for production builds: no external scripts, fonts, or connections. */
 const CSP =
@@ -19,6 +23,11 @@ function productionCsp(): Plugin {
 }
 
 export default defineConfig({
+  // Relative base: the same build works at a domain root (https://example.com/)
+  // and under a sub-path (GitHub Pages: https://<user>.github.io/<repo>/).
+  // Safe because routing is hash-based, so index.html is always served from the base folder.
+  base: './',
+  define: { __APP_VERSION__: JSON.stringify(APP_VERSION) },
   plugins: [
     react(),
     productionCsp(),
@@ -30,10 +39,12 @@ export default defineConfig({
       manifest: {
         name: 'AdaptFit',
         short_name: 'AdaptFit',
-        description: 'Your training partner for real life. Log your own programme fast, see real progress, and level up a pixel adventurer. Works offline; data stays on this device.',
-        theme_color: '#0f1116',
-        background_color: '#0f1116',
+        id: './',
+        description: 'Train simply. Progress intelligently. Your workout reads like a note; update only what changed and get honest progress analysis. Works offline; data stays on this device.',
+        theme_color: '#f6f2ea',
+        background_color: '#f6f2ea',
         display: 'standalone',
+        categories: ['health', 'fitness', 'productivity'],
         orientation: 'portrait',
         start_url: './',
         scope: './',

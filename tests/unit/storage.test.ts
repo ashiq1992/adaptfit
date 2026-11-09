@@ -46,7 +46,7 @@ describe('Storage', () => {
     const uncompleted = v2Backup();
     uncompleted.data.sessions[0]!.exercises[0]!.sets[0]!.completed = false;
     expect(parseBackupText(text(uncompleted))).toEqual({ ok: false, error: 'A completed workout has no completed sets.' });
-    expect(parseBackupText(text({ ...v2Backup(), version: 9 }))).toEqual({ ok: false, error: 'Unsupported backup version (9). This app reads versions 1, 2 and 3.' });
+    expect(parseBackupText(text({ ...v2Backup(), version: 9 }))).toEqual({ ok: false, error: 'Unsupported backup version (9). This app reads versions 1, 2, 3 and 4.' });
   });
 
   it('T36 corrupted backups are rejected safely', async () => {

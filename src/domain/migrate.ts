@@ -5,6 +5,7 @@ import {
   type BodyweightEntry,
   type CheckIn,
   DEFAULT_CHARACTER,
+  DEFAULT_NOTIFICATIONS,
   EMPTY_LIFESTYLE,
   EMPTY_TRAINING_PREFS,
   type LoadType,
@@ -38,16 +39,29 @@ export function migrateProfile(p: LegacyProfile | Profile): Profile {
     lifestyle: v3.lifestyle ?? structuredClone(EMPTY_LIFESTYLE),
     character: v3.character ?? structuredClone(DEFAULT_CHARACTER),
     trainingPrefs: v3.trainingPrefs ?? structuredClone(EMPTY_TRAINING_PREFS),
+    loggingMode: v3.loggingMode ?? 'weekly',
+    notifications: v3.notifications ?? { ...DEFAULT_NOTIFICATIONS },
   };
 }
 
-/** V0.2 → V0.3 programme: adds the optional planned load and template link. Nothing is removed. */
+/**
+ * V0.2 → V0.4 programme: adds the optional planned load and template link
+ * (V0.3) and the note fields (V0.4). Nothing is removed or reinterpreted.
+ */
 export function migrateProgramme(p: Programme): Programme {
   const raw = p as Partial<Programme>;
   return {
     ...p,
     templateId: raw.templateId ?? null,
-    days: p.days.map((d) => ({ ...d, exercises: d.exercises.map((e) => ({ ...e, plannedLoad: (e as Partial<typeof e>).plannedLoad ?? null })) })),
+    notes: raw.notes ?? '',
+    days: p.days.map((d) => ({
+      ...d,
+      notes: (d as Partial<typeof d>).notes ?? '',
+      exercises: d.exercises.map((e) => {
+        const x = e as Partial<typeof e>;
+        return { ...e, plannedLoad: x.plannedLoad ?? null, uncertain: x.uncertain ?? [] };
+      }),
+    })),
   };
 }
 

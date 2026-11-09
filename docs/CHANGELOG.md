@@ -1,5 +1,62 @@
 # Changelog
 
+## 0.5.0 — 2026-11-09 — "Ink & Paper"
+
+A visual identity for the notebook idea. No data or feature changes; nothing to migrate.
+
+### Added
+- **Ink & Paper design system** (`src/ui/tokens.css`, `src/ui/app.css`): warm paper background, black ink for the plan and main actions, **blue ink for what you actually did**, a **highlighter only for progress**, pencil amber for "check this", margin red for errors. Brand board: `docs/brand/ink-and-paper.html`.
+- **Three typefaces**: Fraunces (titles, day headings in italic), the system font (reading), IBM Plex Mono (every load, rep and date). Fonts are bundled (Latin only, ~180 KB, SIL OFL 1.1) and precached, so the app looks the same offline.
+- **Night theme** and **Settings → Appearance** (Paper / Night / Match device), saved on the device and applied before first paint.
+- New logo (ruled lines whose last line steps up, over a highlighter stroke), wordmark "Adapt*Fit*", app icons, favicon and 8 iOS splash screens.
+
+### Changed
+- **Plan**: today's workout is the hero (exercises, last time's numbers in blue, *Open workout*); the week is a row of day circles ticked as sessions are recorded; links are a plain list.
+- **Workout note**: a ruled page with a margin line; serif italic day headings; prescription in mono; "Last" in blue ink.
+- One selected state everywhere (solid ink), three button types, statuses written with the highlighter (improving) or pencil amber (possible plateau/decline).
+- One date format: "23 Oct" (year only when not this year), independent of device locale.
+- Charts drawn in ink; latest value highlighted; sessions per week in blue ink.
+
+### Added (later on 2026-11-09)
+- **Import reads 35 real-world note styles** (tested as a corpus): per-set weights, `3x8 @ 60kg`, RPE/RIR, lbs, decimal commas, bodyweight and `+10kg`, superset labels, warm-ups and drop sets (kept as notes, never counted), checkboxes and emoji bullets, dates inside headings, cardio. Logged sets keep their own weights in history and in the weekly update; the plan keeps sets × reps.
+- **Settings** redesigned as a grouped list (Training · Lifestyle · App · Data & privacy) with aligned rows, one chevron style, equal-width choice rows and consistent type. Other screens audited: steppers no longer clip at 375 px, History and Guided programme use the shared header, all tap targets ≥ 44 px, the highlighter is no longer used for non-progress marks.
+- **Admin page** (`#/admin`, linked from Settings → Privacy & about): this device's app/database version, data counts, first use and last activity, storage use and a "Keep my data on this device" button, installed/offline status. It cannot see other people — AdaptFit has no accounts or server; options for an all-users view are in `docs/ADMIN_AND_ANALYTICS.md` (not built).
+- **Free hosting ready**: relative base path so the app works on GitHub Pages sub-paths, `.github/workflows/deploy-pages.yml` (not run), and `docs/DEPLOY_FREE.md`.
+- **Strategy research**: `docs/STRATEGY.md` (competitors, uniqueness, monetisation, next features, 30-day validation plan).
+- **Tests**: brand tests (colours only from tokens, both themes complete, AA contrast), design tests (fonts per role, alignment, touch targets, axe in Paper and Night), admin and sub-path/offline tests. E2E runs can now use their own port and build folder (`E2E_PORT`, `E2E_DIST`).
+
+### Fixed — Import from Notes
+- Notes written as **blocks** (a numbered exercise name, then lines such as `27.5kg for 7 reps`, `4 × 6`, `76kg`, `Rest: 2 min`) now become one exercise each, with the lines combined. Previously the extra lines became comments or separate "Rest" exercises, and "Chest supported row" was taken for a day heading.
+- Understood now: gym shorthand in names (`db`, `bb`, `lats pull down`, `flat press`), `Did 8 reps`, `45 at 8 reps … x3`, `X3 sets`, `— 8` after a name, rest times (saved to the exercise), `1 RIR` and notes in brackets (kept as text).
+- A load without a unit takes the note's unit when every other load agrees, and says so. "Barbell with added 5 kg" is flagged because the bar's weight isn't written; on pull-ups and dips "added" means bodyweight plus load.
+- The preview shows the plan (`4 sets × 6 reps — 27.5 kg`) with what you did underneath in blue (`Did 7 reps`), plus rest.
+
+## 0.4.0 — 2026-11-08 — "Intelligent Workout Notebook"
+
+A product pivot: simpler than Notes to keep up to date, with the analysis Notes can't do.
+
+### Added
+- **Workout notes.** The plan reads like a note: tap any line to edit it in place; changes save automatically (save status, undo, draft recovery after refresh or a crash). Edit a whole day as text, add, remove, reorder, duplicate, copy as text, free-text notes kept verbatim. Unclear values (e.g. "Bench 30 kg": total or per side?) are flagged with one-tap answers, never guessed.
+- **Weekly update.** Copy previous week, change only what differs, mark sessions done / partly done / skipped (or all at once), confirm. Copied values never count until confirmed; blank rows are never treated as unchanged; one record per week; editing a confirmed week keeps its earlier version.
+- **Import from Notes.** Paste from Apple Notes / Google Keep; deterministic parser (day and date headings, kg/lb, per side, per dumbbell, total, bodyweight, added load, rep lists, `3x8`, `10x3` flagged, timed work, comments). Preview shows what was recognised, what needs a check and what is kept as text. Import as a plan, as dated (or explicitly undated) history, or into this week's draft. Duplicates are detected.
+- **Performance analysis.** Per-exercise status (improving, stable, possible decline, possible plateau, not enough data) with plain explanations such as "1 more rep in the first set at the same recorded load (30 kg/side)"; personal bests; real milestones; charts for working load, reps, volume, sessions per week, bodyweight.
+- **Weekly review** after each confirmed week: sessions done of planned, per-exercise change, and a 2–4 sentence coach summary. Dismiss and revisit from Coach.
+- **Programme library** with day and goal filters; any programme (recommended, chosen, imported or written) becomes a workout note.
+- **Mobile app polish:** new app icon and 8 iOS splash screens, standalone PWA meta, safe areas, keyboard-aware layout (navigation steps aside while typing), 44 px touch targets, reduced-motion support.
+- Database v5 (weekly records, note revisions, imports) and backup format 4.
+
+### Changed
+- Navigation is **Plan · Progress · Coach**; Settings moved to the top-right icon. History is reached from Plan (Previous weeks) and Progress.
+- Set-by-set logging is optional (day menu, or "Log live" when enabled in Settings) and writes the same records as weekly updates; a session entered both ways is counted once.
+- New visual design: calm dark palette (#101418 / #2DD4BF), system fonts, notes typography.
+- Onboarding is two screens: units and goal, then Paste from Notes / Choose a programme / Write my own.
+- Nutrition (Fuel) and lifestyle settings are kept but secondary (Coach → Fuel, Settings).
+- Comparison now counts reps across sets at the same load (9,8,8 → 9,9,8 is progress).
+
+### Removed
+- RPG layer from the app: characters, XP, levels, stats, missions, achievements, Journey. Records were not deleted; the code is on branch `legacy/v0.3-rpg`.
+- Home/readiness quick-workout screen and the V0.2 import screen (replaced by Import from Notes).
+
 ## 0.3.0 — 2026-11-06 — "Performance Edition"
 
 ### Added

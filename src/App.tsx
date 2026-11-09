@@ -1,76 +1,92 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
-import { useAppData, useRpg, useToday } from './data/useAppData';
-import { HomeScreen } from './features/train/HomeScreen';
-import { WorkoutScreen } from './features/workout/WorkoutScreen';
+import { lazy, Suspense, useEffect, useMemo, useRef } from 'react';
+import { useAppData, useToday } from './data/useAppData';
+import { PlanScreen } from './features/plan/PlanScreen';
+import { NoteScreen } from './features/notes/NoteScreen';
 import { refreshToUpdate, usePwa } from './pwa';
 import { AnnouncerProvider } from './ui/Announcer';
 import { AppContext, type AppContextValue } from './ui/DataContext';
 import { useHash } from './ui/hooks';
-import { IconCoach, IconGear, IconJourney, IconProgress, IconTrain, Logo } from './ui/icons';
+import { IconCoach, IconNotes, IconProgress, Logo, Wordmark } from './ui/icons';
+import { useKeyboardAwareness } from './ui/keyboard';
 
-// Less-frequent screens load on demand; Train and Workout stay in the main bundle.
-const CoachScreen = lazy(() => import('./features/coach/CoachScreen').then((m) => ({ default: m.CoachScreen })));
-const HistoryScreen = lazy(() => import('./features/history/HistoryScreen').then((m) => ({ default: m.HistoryScreen })));
-const ImportScreen = lazy(() => import('./features/importer/ImportScreen').then((m) => ({ default: m.ImportScreen })));
-const JourneyScreen = lazy(() => import('./features/journey/JourneyScreen').then((m) => ({ default: m.JourneyScreen })));
-const Onboarding = lazy(() => import('./features/onboarding/Onboarding').then((m) => ({ default: m.Onboarding })));
+// Plan and the workout note are the everyday screens and stay in the main bundle.
+const WeeklyScreen = lazy(() => import('./features/weekly/WeeklyScreen').then((m) => ({ default: m.WeeklyScreen })));
+const PreviousWeeks = lazy(() => import('./features/weekly/PreviousWeeks').then((m) => ({ default: m.PreviousWeeks })));
+const NotesImport = lazy(() => import('./features/importer/NotesImport').then((m) => ({ default: m.NotesImport })));
+const LibraryScreen = lazy(() => import('./features/programmes/LibraryScreen').then((m) => ({ default: m.LibraryScreen })));
 const GuidedProgramme = lazy(() => import('./features/programmes/GuidedProgramme').then((m) => ({ default: m.GuidedProgramme })));
 const ProgrammeEditor = lazy(() => import('./features/programmes/ProgrammeEditor').then((m) => ({ default: m.ProgrammeEditor })));
 const ProgressScreen = lazy(() => import('./features/progress/ProgressScreen').then((m) => ({ default: m.ProgressScreen })));
+const CoachScreen = lazy(() => import('./features/coach/CoachScreen').then((m) => ({ default: m.CoachScreen })));
 const SettingsScreen = lazy(() => import('./features/settings/SettingsScreen').then((m) => ({ default: m.SettingsScreen })));
+const AdminScreen = lazy(() => import('./features/admin/AdminScreen').then((m) => ({ default: m.AdminScreen })));
+const HistoryScreen = lazy(() => import('./features/history/HistoryScreen').then((m) => ({ default: m.HistoryScreen })));
+const WorkoutScreen = lazy(() => import('./features/workout/WorkoutScreen').then((m) => ({ default: m.WorkoutScreen })));
 const FinishedScreen = lazy(() => import('./features/workout/FinishedScreen').then((m) => ({ default: m.FinishedScreen })));
+const Onboarding = lazy(() => import('./features/onboarding/Onboarding').then((m) => ({ default: m.Onboarding })));
 
 export type Route =
-  | { name: 'train' }
+  | { name: 'plan' }
+  | { name: 'note'; id: string; dayId: string | null }
+  | { name: 'week'; weekStart: string | null }
+  | { name: 'weeks' }
+  | { name: 'import' }
+  | { name: 'library' }
+  | { name: 'guide' }
+  | { name: 'programme'; id: string }
+  | { name: 'progress'; key: string | null }
+  | { name: 'coach'; tab: string | null }
+  | { name: 'settings' }
+  | { name: 'admin' }
   | { name: 'history' }
   | { name: 'workout' }
-  | { name: 'done'; id: string }
-  | { name: 'progress' }
-  | { name: 'coach'; tab: string | null }
-  | { name: 'journey' }
-  | { name: 'settings' }
-  | { name: 'programme'; id: string; openImport?: boolean }
-  | { name: 'guide' }
-  | { name: 'import' };
+  | { name: 'done'; id: string };
 
 export function parseRoute(hash: string): Route {
-  const [, a, b] = (hash.replace(/^#/, '') || '/train').split('/');
+  const [, a, b, c] = (hash.replace(/^#/, '').split('?')[0] || '/plan').split('/');
+  const dec = (x: string | undefined) => (x ? decodeURIComponent(x) : null);
   switch (a) {
-    case 'train':
-      return b === 'history' ? { name: 'history' } : { name: 'train' };
+    case 'note':
+      return b ? { name: 'note', id: dec(b)!, dayId: dec(c) } : { name: 'plan' };
+    case 'week':
+      return { name: 'week', weekStart: dec(b) };
+    case 'weeks':
+      return { name: 'weeks' };
+    case 'import':
+      return { name: 'import' };
+    case 'library':
+      return b === 'guide' ? { name: 'guide' } : { name: 'library' };
+    case 'programmes':
+      if (b === 'guide') return { name: 'guide' };
+      if (b === 'import') return { name: 'import' };
+      return b && b !== 'new' ? { name: 'programme', id: dec(b)! } : { name: 'library' };
+    case 'progress':
+      return { name: 'progress', key: dec(b) };
+    case 'coach':
+      return { name: 'coach', tab: b ?? null };
+    case 'settings':
+      return { name: 'settings' };
+    case 'admin':
+      return { name: 'admin' };
     case 'history':
       return { name: 'history' };
     case 'workout':
       return { name: 'workout' };
     case 'done':
-      return b ? { name: 'done', id: decodeURIComponent(b) } : { name: 'train' };
-    case 'progress':
-      return { name: 'progress' };
-    case 'coach':
-      return { name: 'coach', tab: b ?? null };
-    case 'journey':
-      return { name: 'journey' };
-    case 'settings':
-      return { name: 'settings' };
-    case 'programmes':
-      if (b === 'guide') return { name: 'guide' };
-      if (b === 'import') return { name: 'programme', id: 'new', openImport: true };
-      return { name: 'programme', id: b ? decodeURIComponent(b) : 'new' };
-    case 'import':
-      return { name: 'import' };
+      return b ? { name: 'done', id: dec(b)! } : { name: 'plan' };
     default:
-      return { name: 'train' };
+      // V0.3 routes (#/train, #/journey) land on Plan.
+      return { name: 'plan' };
   }
 }
 
-type Tab = 'train' | 'progress' | 'coach' | 'journey';
+type Tab = 'plan' | 'progress' | 'coach';
 
 function tabOf(r: Route): Tab | null {
-  if (r.name === 'train' || r.name === 'history' || r.name === 'done' || r.name === 'import') return 'train';
-  if (r.name === 'progress') return 'progress';
+  if (r.name === 'progress' || r.name === 'history') return 'progress';
   if (r.name === 'coach') return 'coach';
-  if (r.name === 'journey') return 'journey';
-  return null;
+  if (r.name === 'workout' || r.name === 'settings' || r.name === 'admin') return null;
+  return 'plan';
 }
 
 export function App() {
@@ -85,25 +101,22 @@ function Shell() {
   const live = useAppData();
   const route = parseRoute(useHash());
   const today = useToday(live.data?.profile);
-  const rpg = useRpg(live.data, today);
   const mainRef = useRef<HTMLElement>(null);
+  useKeyboardAwareness();
 
   // Move focus to the new screen's heading for keyboard and screen-reader users.
-  const routeKey = route.name;
+  const routeKey = `${route.name}:${'id' in route ? route.id : ''}`;
   const first = useRef(true);
   useEffect(() => {
     if (first.current) {
       first.current = false;
       return;
     }
-    mainRef.current?.querySelector<HTMLElement>('h1')?.focus();
-    window.scrollTo({ top: 0 });
-  }, [routeKey]);
+    mainRef.current?.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true });
+    if (!window.location.hash.includes('/note/') || !route.name.startsWith('note')) window.scrollTo({ top: 0 });
+  }, [routeKey, route.name]);
 
-  const ctx = useMemo<AppContextValue | null>(
-    () => (live.data?.profile && rpg ? { data: { ...live.data, profile: live.data.profile }, today, rpg } : null),
-    [live.data, today, rpg],
-  );
+  const ctx = useMemo<AppContextValue | null>(() => (live.data?.profile ? { data: { ...live.data, profile: live.data.profile }, today } : null), [live.data, today]);
 
   if (live.loading) {
     return (
@@ -128,6 +141,7 @@ function Shell() {
 
   const inWorkout = route.name === 'workout';
   const tab = tabOf(route);
+  const coachDot = ctx.data.profile.notifications.coachFindings && ctx.data.recommendations.some((r) => r.status === 'open');
 
   return (
     <AppContext.Provider value={ctx}>
@@ -142,94 +156,63 @@ function Shell() {
         >
           Skip to content
         </a>
-        {!inWorkout && <Header />}
+        <UpdateBanner />
         <main id="main" ref={mainRef} className="main">
           <Suspense fallback={<p className="muted">Loading…</p>}>
-          {route.name === 'train' && <HomeScreen />}
-          {route.name === 'history' && <HistoryScreen />}
-          {route.name === 'workout' && <WorkoutScreen />}
-          {route.name === 'done' && <FinishedScreen id={route.id} />}
-          {route.name === 'progress' && <ProgressScreen />}
-          {route.name === 'coach' && <CoachScreen tab={route.tab} />}
-          {route.name === 'journey' && <JourneyScreen />}
-          {route.name === 'settings' && <SettingsScreen />}
-          {route.name === 'programme' && <ProgrammeEditor id={route.id} openImport={route.openImport} />}
-          {route.name === 'guide' && <GuidedProgramme />}
-          {route.name === 'import' && <ImportScreen />}
+            {route.name === 'plan' && <PlanScreen />}
+            {route.name === 'note' && <NoteScreen id={route.id} dayId={route.dayId} />}
+            {route.name === 'week' && <WeeklyScreen weekStart={route.weekStart} />}
+            {route.name === 'weeks' && <PreviousWeeks />}
+            {route.name === 'import' && <NotesImport />}
+            {route.name === 'library' && <LibraryScreen />}
+            {route.name === 'guide' && <GuidedProgramme />}
+            {route.name === 'programme' && <ProgrammeEditor id={route.id} />}
+            {route.name === 'progress' && <ProgressScreen exerciseKey={route.key} />}
+            {route.name === 'coach' && <CoachScreen tab={route.tab} />}
+            {route.name === 'settings' && <SettingsScreen />}
+            {route.name === 'admin' && <AdminScreen />}
+            {route.name === 'history' && <HistoryScreen />}
+            {route.name === 'workout' && <WorkoutScreen />}
+            {route.name === 'done' && <FinishedScreen id={route.id} />}
           </Suspense>
         </main>
-        {!inWorkout && <Nav current={tab} hasActive={!!ctx.data.active} />}
+        {!inWorkout && <Nav current={tab} activeWorkout={!!ctx.data.active} coachDot={coachDot} />}
       </div>
     </AppContext.Provider>
   );
 }
 
-function Header() {
+function UpdateBanner() {
   const pwa = usePwa();
-  const online = useOnline();
-  let status: [string, string];
-  if (!online) status = pwa.offlineReady ? ['Offline · ready', 'chip-ok'] : ['Offline', 'chip-warn'];
-  else if (pwa.offlineReady) status = ['Offline ready', 'chip-ok'];
-  else if (pwa.supported) status = ['Preparing offline…', 'chip-muted'];
-  else status = ['Online only', 'chip-muted'];
+  if (!pwa.needRefresh) return null;
   return (
-    <>
-      <header className="topbar">
-        <a href="#/train" className="brand" aria-label="AdaptFit — Train">
-          <Logo />
-          <span>
-            Adapt<span className="brand-fit">Fit</span>
-          </span>
-        </a>
-        <div className="topbar-right">
-          <span className={`chip ${status[1]}`} data-testid="offline-status" data-offline-ready={pwa.offlineReady ? 'true' : 'false'}>
-            {status[0]}
-          </span>
-          <a href="#/settings" className="btn btn-ghost btn-icon" aria-label="Profile and settings">
-            <IconGear />
-          </a>
-        </div>
-      </header>
-      {pwa.needRefresh && (
-        <div className="update-banner" role="region" aria-label="Update available">
-          <span>A new version of AdaptFit is ready.</span>
-          <button type="button" className="btn btn-tertiary btn-sm" onClick={refreshToUpdate}>
-            Refresh
-          </button>
-        </div>
-      )}
-    </>
+    <div className="update-banner" role="region" aria-label="Update available">
+      <span>A new version of AdaptFit is ready.</span>
+      <button type="button" className="btn btn-secondary btn-sm" onClick={refreshToUpdate}>
+        Refresh
+      </button>
+    </div>
   );
 }
 
-function useOnline(): boolean {
-  return useSyncExternalStore(
-    (cb) => {
-      window.addEventListener('online', cb);
-      window.addEventListener('offline', cb);
-      return () => {
-        window.removeEventListener('online', cb);
-        window.removeEventListener('offline', cb);
-      };
-    },
-    () => navigator.onLine,
-  );
-}
-
-function Nav({ current, hasActive }: { current: Tab | null; hasActive: boolean }) {
+function Nav({ current, activeWorkout, coachDot }: { current: Tab | null; activeWorkout: boolean; coachDot: boolean }) {
   const items = [
-    { id: 'train', label: 'Train', href: '#/train', icon: <IconTrain /> },
+    { id: 'plan', label: 'Plan', href: '#/plan', icon: <IconNotes /> },
     { id: 'progress', label: 'Progress', href: '#/progress', icon: <IconProgress /> },
     { id: 'coach', label: 'Coach', href: '#/coach', icon: <IconCoach /> },
-    { id: 'journey', label: 'Journey', href: '#/journey', icon: <IconJourney /> },
   ] as const;
   return (
     <nav className="bottomnav" aria-label="Main">
+      <a href="#/plan" className="nav-brand" aria-hidden="true" tabIndex={-1}>
+        <Logo size={28} />
+        <Wordmark />
+      </a>
       {items.map((i) => (
         <a key={i.id} href={i.href} className="nav-item" aria-current={current === i.id ? 'page' : undefined}>
           {i.icon}
           <span>{i.label}</span>
-          {i.id === 'train' && hasActive && <span className="nav-dot" aria-label="Workout in progress" />}
+          {i.id === 'plan' && activeWorkout && <span className="nav-dot" aria-label="Live log in progress" />}
+          {i.id === 'coach' && coachDot && <span className="nav-dot" aria-label="New coach finding" />}
         </a>
       ))}
     </nav>

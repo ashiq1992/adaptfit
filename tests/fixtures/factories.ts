@@ -45,6 +45,8 @@ export function makeProfile(overrides: Partial<Profile> = {}): Profile {
     lifestyle: structuredClone(EMPTY_LIFESTYLE),
     character: structuredClone(DEFAULT_CHARACTER),
     trainingPrefs: structuredClone(EMPTY_TRAINING_PREFS),
+    loggingMode: 'weekly',
+    notifications: { weeklyReminder: true, coachFindings: true },
     createdAt: T0.toISOString(),
     updatedAt: T0.toISOString(),
     ...overrides,

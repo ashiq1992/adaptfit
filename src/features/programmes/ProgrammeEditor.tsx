@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { EXERCISES, EXERCISES_BY_ID } from '../../content/exercises';
-import { newId, saveCustomExercise, saveProgramme } from '../../data/repo';
+import { newId, saveCustomExercise, saveNote } from '../../data/repo';
 import { LOAD_TYPE_LABEL, usesPlannedLoad } from '../../domain/loads';
 import { parseRoutine } from '../../domain/notesImport';
 import { createProgramme, duplicateDay, estimateDayMinutes, programmeExercise, validateProgramme } from '../../domain/programme';
@@ -12,7 +12,7 @@ import { DayPicker } from '../../ui/controls';
 import { useApp } from '../../ui/DataContext';
 import { Dialog } from '../../ui/Dialog';
 import { navigate } from '../../ui/hooks';
-import { IconBack, IconChevronDown, IconDown, IconPlus, IconTrash, IconUp } from '../../ui/icons';
+import { IconBack, IconDown, IconPlus, IconTrash, IconUp } from '../../ui/icons';
 import { GOAL_CHOICES } from '../onboarding/choices';
 import { PlannedLoadField } from './PlannedLoadField';
 
@@ -24,7 +24,7 @@ export function ProgrammeEditor({ id, openImport }: { id: string; openImport?: b
     if (draft) return;
     if (existing) setDraft(structuredClone(existing));
     else if (id === 'new')
-      setDraft(createProgramme(newId, clock.now(), { name: '', goal: data.profile.goal, days: [{ id: newId(), name: 'Day 1', exercises: [] }], daysPerWeek: 3 }));
+      setDraft(createProgramme(newId, clock.now(), { name: '', goal: data.profile.goal, days: [{ id: newId(), name: 'Day 1', exercises: [], notes: '' }], daysPerWeek: 3 }));
   }, [existing, id, draft, data.profile.goal]);
 
   if (!draft) {
@@ -61,11 +61,11 @@ function Editor({ draft, setDraft, isNew, openImport }: { draft: Programme; setD
     // Drop review-only fields (e.g. import candidates) before persisting.
     const days = draft.days.map((d) => ({
       ...d,
-      exercises: d.exercises.map(({ id: exId, exerciseId, name, loadType, sets, repMin, repMax, durationSec, restSec, priority, notes, plannedLoad }) => ({ id: exId, exerciseId, name, loadType, sets, repMin, repMax, durationSec, restSec, priority, notes, plannedLoad: usesPlannedLoad(loadType) ? plannedLoad : null })),
+      exercises: d.exercises.map(({ id: exId, exerciseId, name, loadType, sets, repMin, repMax, durationSec, restSec, priority, notes, plannedLoad, uncertain }) => ({ id: exId, exerciseId, name, loadType, sets, repMin, repMax, durationSec, restSec, priority, notes, plannedLoad: usesPlannedLoad(loadType) ? plannedLoad : null, uncertain })),
     }));
-    await saveProgramme({ ...draft, days, updatedAt: clock.now().toISOString() }, { activate });
+    await saveNote({ ...draft, days }, 'Edited details', clock.now(), { activate });
     announce('Programme saved.');
-    navigate('/train');
+    navigate(`/note/${encodeURIComponent(draft.id)}`);
   };
 
   return (
@@ -91,7 +91,7 @@ function Editor({ draft, setDraft, isNew, openImport }: { draft: Programme; setD
           <input id={nameId} className="input" value={draft.name} placeholder="e.g. Upper / Lower" onChange={(e) => update({ name: e.target.value })} />
         </div>
         <RadioGroup legend="Goal" name="pe-goal" choices={GOAL_CHOICES} value={draft.goal} onChange={(v) => update({ goal: v })} />
-        <RadioGroup legend="Sessions per week" name="pe-days" choices={[1, 2, 3, 4, 5, 6, 7].map((n) => ({ value: n, label: String(n) }))} value={draft.daysPerWeek} onChange={(v) => update({ daysPerWeek: v })} />
+        <RadioGroup legend="Sessions per week" name="pe-days" layout="row" choices={[1, 2, 3, 4, 5, 6, 7].map((n) => ({ value: n, label: String(n) }))} value={draft.daysPerWeek} onChange={(v) => update({ daysPerWeek: v })} />
         <DayPicker legend="Preferred weekdays (optional)" value={draft.preferredWeekdays} onChange={(v) => update({ preferredWeekdays: v })} />
       </section>
 
@@ -125,7 +125,7 @@ function Editor({ draft, setDraft, isNew, openImport }: { draft: Programme; setD
           }}
         />
       ))}
-      <button type="button" className="btn btn-tertiary" onClick={() => update({ days: [...draft.days, { id: newId(), name: `Day ${draft.days.length + 1}`, exercises: [] }] })}>
+      <button type="button" className="btn btn-tertiary" onClick={() => update({ days: [...draft.days, { id: newId(), name: `Day ${draft.days.length + 1}`, exercises: [], notes: '' }] })}>
         <IconPlus size={18} /> Add training day
       </button>
 
@@ -136,7 +136,7 @@ function Editor({ draft, setDraft, isNew, openImport }: { draft: Programme; setD
           <span className="switch-track" aria-hidden="true" />
         </label>
         {errors.length > 0 && (
-          <ul className="bullet-list" role="alert" style={{ color: 'var(--danger)' }}>
+          <ul className="bullet-list error-list" role="alert">
             {errors.map((e) => (
               <li key={e}>{e}</li>
             ))}
@@ -229,13 +229,12 @@ function DayEditor({ day, index, count, onChange, onDuplicate, onDelete, onMove 
       <summary className="row between">
         <span>
           <span className="strong">{day.name || `Day ${index + 1}`}</span>
-          <span className="xs muted num" style={{ display: 'block' }}>
+          <span className="xs muted num block">
             {day.exercises.length} exercises · ~{estimateDayMinutes(day)} min
           </span>
         </span>
-        <IconChevronDown />
       </summary>
-      <div className="stack" style={{ marginTop: 12 }}>
+      <div className="stack mt-3">
         <div className="field">
           <label className="field-label" htmlFor={nameId}>
             Day name
@@ -272,7 +271,7 @@ function DayEditor({ day, index, count, onChange, onDuplicate, onDelete, onMove 
             <div className="row between wrap">
               <label className="choice">
                 <input type="checkbox" checked={pe.priority} onChange={(e) => setEx(pe.id, { priority: e.target.checked })} />
-                <span className="choice-body" style={{ minHeight: 36, padding: '4px 12px' }}>
+                <span className="choice-body">
                   <span className="choice-label">★ Priority lift</span>
                 </span>
               </label>
@@ -402,6 +401,7 @@ function RoutineImportDialog({ onClose, onImport }: { onClose: () => void; onImp
     parsed.days.map((d) => ({
       id: newId(),
       name: d.name,
+      notes: '',
       exercises: d.lines.map((l) => ({
         ...programmeExercise(newId, {
           exerciseId: l.exerciseId ?? '',

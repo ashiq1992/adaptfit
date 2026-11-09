@@ -20,6 +20,8 @@ export interface ExerciseSummary {
   /** Most reps achieved at the top load (or best reps for bodyweight). */
   repsAtTop: number | null;
   setsAtTop: number;
+  /** Sum of reps over the sets at the top load (same-load rep progress, e.g. 9,8,8 → 9,9,8). */
+  totalRepsAtTop: number;
   bestDurationSec: number | null;
   totalReps: number;
   /** Σ load × reps in the exercise's own convention; null if not meaningful. */
@@ -54,6 +56,7 @@ export function summarizeExercise(ex: SessionExercise): ExerciseSummary | null {
     topLoadKg: topLoad === null ? null : toKg(topLoad, ex.unit),
     repsAtTop,
     setsAtTop: atTop.length,
+    totalRepsAtTop: atTop.reduce((n, s) => n + (s.reps ?? 0), 0),
     bestDurationSec: ex.loadType === 'timed' ? Math.max(0, ...sets.map((s) => s.durationSec ?? 0)) || null : null,
     totalReps: sets.reduce((n, s) => n + (s.reps ?? 0), 0),
     volume,
@@ -97,6 +100,12 @@ export function compare(cur: ExerciseSummary, prev: ExerciseSummary | null): Com
   if (dReps > 0) return { kind: 'reps-up', label: `+${dReps} rep${dReps === 1 ? '' : 's'}` };
   if (dReps < 0) return { kind: 'regression', label: `${dReps} rep${dReps === -1 ? '' : 's'}` };
   if (cur.setsAtTop > prev.setsAtTop) return { kind: 'sets-up', label: `+${cur.setsAtTop - prev.setsAtTop} set${cur.setsAtTop - prev.setsAtTop === 1 ? '' : 's'}` };
+  if (cur.setsAtTop === prev.setsAtTop) {
+    // Same best set and same number of sets: compare the reps across those sets.
+    const dTotal = (cur.totalRepsAtTop ?? 0) - (prev.totalRepsAtTop ?? 0);
+    if (dTotal > 0) return { kind: 'reps-up', label: `+${dTotal} rep${dTotal === 1 ? '' : 's'} across sets` };
+    if (dTotal < 0) return { kind: 'regression', label: `${dTotal} rep${dTotal === -1 ? '' : 's'} across sets` };
+  }
   if (cur.avgRir !== null && prev.avgRir !== null && cur.avgRir - prev.avgRir >= 1)
     return { kind: 'effort-down', label: `Easier (RIR +${trim(Math.round((cur.avgRir - prev.avgRir) * 10) / 10)})` };
   return { kind: 'stable', label: 'Stable' };

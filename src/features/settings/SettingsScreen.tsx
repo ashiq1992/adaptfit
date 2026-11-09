@@ -1,17 +1,18 @@
 import { type ReactNode, useId, useState } from 'react';
-import { deleteProgramme, newId, resetAllData, saveNutrition, saveProfile, saveProgramme } from '../../data/repo';
+import { resetAllData, saveNote, saveNutrition, saveProfile } from '../../data/repo';
 import { emptyNutritionProfile, seedFromLifestyle } from '../../domain/nutrition';
-import { starterUpperLower, validateProgramme } from '../../domain/programme';
 import { type Lifestyle, type Profile, TRAINING_WINDOWS, type TrainingWindow } from '../../domain/types';
 import { usePwa } from '../../pwa';
 import { useAnnounce } from '../../ui/Announcer';
 import { RadioGroup } from '../../ui/ChoiceGroup';
 import { clock } from '../../ui/clock';
-import { DayPicker, SettingsGroup, Switch } from '../../ui/controls';
+import { DayPicker, SettingsGroup, SettingsSection, Switch } from '../../ui/controls';
 import { useApp } from '../../ui/DataContext';
 import { ConfirmDialog } from '../../ui/Dialog';
 import { navigate } from '../../ui/hooks';
-import { IconBriefcase, IconCalendar, IconDatabase, IconGame, IconInfo, IconMoon, IconScroll, IconShield, IconTrain, IconUser, IconUtensils } from '../../ui/icons';
+import { IconBriefcase, IconCalendar, IconDatabase, IconDownload, IconInfo, IconMoon, IconNotes, IconPalette, IconShield, IconTrain, IconUser, IconUtensils } from '../../ui/icons';
+import { setTheme, THEMES, useTheme } from '../../ui/theme';
+import { ScreenHeader } from '../../ui/ScreenHeader';
 import { EXPERIENCE_CHOICES, GOAL_CHOICES } from '../onboarding/choices';
 import { loadBackup, RestoreBackup } from './RestoreBackup';
 
@@ -42,29 +43,99 @@ function StatusLine({ status, testId }: { status: Status; testId?: string }) {
   );
 }
 
+/** Compact settings. Workout notes themselves are managed from Plan. */
 export function SettingsScreen() {
   return (
     <div className="screen">
-      <div className="screen-head">
-        <h1 tabIndex={-1}>Settings</h1>
-      </div>
-      <div className="grid-2">
-        <div className="stack">
+      <ScreenHeader back={{ href: '#/plan', label: 'Plan' }} title="Settings" />
+      <div className="settings">
+        <SettingsSection title="Training">
           <GoalsSection />
-          <ProgrammesSection />
           <AvailabilitySection />
+          <LoggingSection />
+          <UnitsSection />
+        </SettingsSection>
+        <SettingsSection title="Lifestyle">
           <WorkSection />
           <SleepSection />
           <NutritionSection />
-        </div>
-        <div className="stack">
-          <UnitsSection />
-          <GamificationSection />
+        </SettingsSection>
+        <SettingsSection title="App">
+          <AppearanceSection />
+          <InstallSection />
+        </SettingsSection>
+        <SettingsSection title="Data & privacy">
           <DataSection />
           <PrivacySection />
-        </div>
+        </SettingsSection>
       </div>
     </div>
+  );
+}
+
+/** Paper (default), Night, or follow the device. Stored on this device only. */
+function AppearanceSection() {
+  const theme = useTheme();
+  const announce = useAnnounce();
+  return (
+    <SettingsGroup icon={<IconPalette />} title="Appearance" subtitle={THEMES.find((t) => t.id === theme)?.label ?? 'Paper'}>
+      <fieldset className="field">
+        <legend className="field-label">Theme</legend>
+        <div className="seg" role="radiogroup" aria-label="Theme">
+          {THEMES.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="radio"
+              aria-checked={theme === t.id}
+              className="seg-btn"
+              onClick={() => {
+                setTheme(t.id);
+                announce(`${t.label} theme on.`);
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <p className="field-hint">Paper is warm and easy to read in daylight; Night is the same design in dark ink for the evening. Saved on this device only.</p>
+      </fieldset>
+    </SettingsGroup>
+  );
+}
+
+function LoggingSection() {
+  const { profile, save, status } = useProfileSaver();
+  return (
+    <SettingsGroup icon={<IconNotes />} title="Logging and reminders" subtitle={profile.loggingMode === 'live' ? 'Weekly updates + live logging' : 'Weekly updates'}>
+      <Switch
+        label="Show “Log live” on each day"
+        hint="Optional set-by-set logging with timers. Off: it stays in each day’s ⋯ menu. Either way, weekly updates give the same analysis."
+        checked={profile.loggingMode === 'live'}
+        onChange={(v) => void save({ loggingMode: v ? 'live' : 'weekly' }, v ? 'Live logging shown.' : 'Live logging moved to the day menu.')}
+      />
+      <Switch label="Weekly update reminder on Plan" hint="A quiet line on Plan from Friday. No push notifications." checked={profile.notifications.weeklyReminder} onChange={(v) => void save({ notifications: { ...profile.notifications, weeklyReminder: v } }, 'Reminder saved.')} />
+      <Switch label="Dot on Coach for new findings" checked={profile.notifications.coachFindings} onChange={(v) => void save({ notifications: { ...profile.notifications, coachFindings: v } }, 'Saved.')} />
+      <StatusLine status={status} testId="logging-status" />
+    </SettingsGroup>
+  );
+}
+
+function InstallSection() {
+  const pwa = usePwa();
+  return (
+    <SettingsGroup icon={<IconDownload />} title="Install the app" subtitle={pwa.offlineReady ? 'Works offline' : 'Add to Home Screen'}>
+      <p className="small">
+        <span className="strong">iPhone (Safari):</span> tap Share, then <em>Add to Home Screen</em>. Open AdaptFit from the new icon; it runs full screen.
+      </p>
+      <p className="small">
+        <span className="strong">Android (Chrome):</span> tap ⋮, then <em>Install app</em> (or <em>Add to Home screen</em>).
+      </p>
+      <p className="xs muted">Installing and offline use need the app to be served over HTTPS (or from this computer as localhost). Your data stays on each device separately — use Export and Restore to move it.</p>
+      <p className="small row" data-testid="offline-status" data-offline-ready={pwa.offlineReady ? 'true' : 'false'}>
+        <IconInfo size={16} /> Offline: {pwa.offlineReady ? 'ready — works without a connection' : pwa.supported ? 'not ready yet (needs one online visit to the installed version)' : 'not available here'}
+      </p>
+    </SettingsGroup>
   );
 }
 
@@ -73,102 +144,8 @@ function GoalsSection() {
   return (
     <SettingsGroup icon={<IconUser />} title="Training goals" subtitle={`${GOAL_CHOICES.find((g) => g.value === profile.goal)?.label ?? profile.goal} · ${profile.experience}`}>
       <RadioGroup legend="Main goal" name="s-goal" layout="cards" choices={GOAL_CHOICES} value={profile.goal} onChange={(v) => void save({ goal: v }, 'Goal saved.')} />
-      <RadioGroup legend="Training experience" name="s-exp" choices={EXPERIENCE_CHOICES} value={profile.experience} onChange={(v) => void save({ experience: v }, 'Experience saved.')} />
+      <RadioGroup legend="Training experience" name="s-exp" layout="cards" choices={EXPERIENCE_CHOICES} value={profile.experience} onChange={(v) => void save({ experience: v }, 'Experience saved.')} />
       <StatusLine status={status} testId="goals-status" />
-    </SettingsGroup>
-  );
-}
-
-function ProgrammesSection() {
-  const { data } = useApp();
-  const announce = useAnnounce();
-  const [confirm, setConfirm] = useState<string | null>(null);
-  const target = data.programmes.find((p) => p.id === confirm);
-  return (
-    <SettingsGroup icon={<IconScroll />} title="Training programmes" subtitle={data.activeProgramme ? `Active: ${data.activeProgramme.name}` : 'No programme yet'} id="programmes">
-      {data.programmes.length === 0 && <p className="small muted">Create your own programme, start from an example, or import a routine.</p>}
-      <ul className="stack-sm">
-        {data.programmes.map((p) => {
-          const issues = validateProgramme(p).length;
-          return (
-            <li key={p.id} className="pe-row">
-              <div className="row between wrap">
-                <span className="strong">{p.name}</span>
-                {p.isActive ? <span className="pill pill-completed">Active</span> : null}
-              </div>
-              <span className="xs muted">
-                {p.days.length} days · {p.daysPerWeek}× per week{p.source === 'starter' ? ' · from example' : ''}
-                {issues ? ` · ${issues} item${issues === 1 ? '' : 's'} to fix` : ''}
-              </span>
-              <div className="row wrap">
-                <a href={`#/programmes/${p.id}`} className="btn btn-tertiary btn-sm">
-                  Edit
-                </a>
-                {!p.isActive && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={async () => {
-                      await saveProgramme(p, { activate: true });
-                      announce(`${p.name} is now active.`);
-                    }}
-                  >
-                    Make active
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={async () => {
-                    const now = clock.now().toISOString();
-                    await saveProgramme({ ...structuredClone(p), id: newId(), name: `${p.name} (copy)`, isActive: false, createdAt: now, updatedAt: now });
-                    announce('Programme duplicated.');
-                  }}
-                >
-                  Duplicate
-                </button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirm(p.id)}>
-                  Delete
-                </button>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-      <div className="row wrap">
-        <a href="#/programmes/guide" className="btn btn-primary btn-grow">
-          Recommend a programme
-        </a>
-        <a href="#/programmes/new" className="btn btn-secondary btn-grow">
-          Build from scratch
-        </a>
-        <button
-          type="button"
-          className="btn btn-tertiary btn-grow"
-          onClick={async () => {
-            const p = starterUpperLower(newId, clock.now(), data.profile.goal);
-            await saveProgramme(p, { activate: !data.activeProgramme });
-            navigate(`/programmes/${p.id}`);
-          }}
-        >
-          Add example
-        </button>
-      </div>
-      {target && (
-        <ConfirmDialog
-          title={`Delete ${target.name}?`}
-          confirmLabel="Delete programme"
-          danger
-          onCancel={() => setConfirm(null)}
-          onConfirm={async () => {
-            await deleteProgramme(target.id);
-            setConfirm(null);
-            announce('Programme deleted. Workout history is unchanged.');
-          }}
-        >
-          <p>Your workout history is kept — past sessions store their own copy of what you did.</p>
-        </ConfirmDialog>
-      )}
     </SettingsGroup>
   );
 }
@@ -176,13 +153,14 @@ function ProgrammesSection() {
 function AvailabilitySection() {
   const { profile, save, status } = useProfileSaver();
   const { data } = useApp();
+  const announce = useAnnounce();
   const t = profile.lifestyle.training ?? { minDays: null, preferredDays: [] };
   const setTraining = (patch: Partial<NonNullable<Lifestyle['training']>>) => save({ lifestyle: { ...profile.lifestyle, training: { ...t, ...patch } } }, 'Availability saved.');
   return (
-    <SettingsGroup icon={<IconCalendar />} title="Training availability" subtitle={`${data.activeProgramme?.daysPerWeek ?? '—'} days/week · ${profile.preferredMinutes} min sessions`}>
+    <SettingsGroup icon={<IconCalendar />} title="Weekly schedule" subtitle={`${data.activeProgramme?.daysPerWeek ?? '—'} days/week · ${profile.preferredMinutes} min sessions`}>
       <RadioGroup
         legend="Preferred session length"
-        name="s-len"
+        name="s-len" layout="row"
         choices={[30, 45, 60, 75, 90].map((m) => ({ value: m, label: `${m} min` }))}
         value={profile.preferredMinutes}
         onChange={(v) => void save({ preferredMinutes: v }, 'Session length saved.')}
@@ -190,12 +168,20 @@ function AvailabilitySection() {
       <DayPicker legend="Preferred gym days" value={t.preferredDays} onChange={(v) => void setTraining({ preferredDays: v })} />
       <RadioGroup
         legend="Minimum sessions in a busy week"
-        name="s-min"
+        name="s-min" layout="row"
         choices={[{ value: 0, label: 'Not set' }, ...[1, 2, 3, 4].map((n) => ({ value: n, label: String(n) }))]}
         value={t.minDays ?? 0}
         onChange={(v) => void setTraining({ minDays: v === 0 ? null : v })}
       />
-      <p className="xs muted">Programme days per week are set in the programme editor.</p>
+      {data.activeProgramme && (
+        <RadioGroup
+          legend={`Sessions per week in “${data.activeProgramme.name}”`}
+          name="s-days" layout="row"
+          choices={[1, 2, 3, 4, 5, 6, 7].map((n) => ({ value: n, label: String(n) }))}
+          value={data.activeProgramme.daysPerWeek}
+          onChange={(v) => void saveNote({ ...data.activeProgramme!, daysPerWeek: v }, 'Changed frequency', clock.now()).then(() => announce(`${v} sessions per week.`))}
+        />
+      )}
       <StatusLine status={status} />
     </SettingsGroup>
   );
@@ -226,7 +212,7 @@ function WorkSection() {
       </div>
       <RadioGroup
         legend="Unusual overtime"
-        name="s-ot"
+        name="s-ot" layout="row"
         choices={[
           { value: 'none', label: 'Not set' },
           { value: 'rare', label: 'Rare' },
@@ -271,7 +257,7 @@ function SleepSection() {
       </div>
       <RadioGroup
         legend="Usual sleep quality"
-        name="s-sq"
+        name="s-sq" layout="row"
         choices={[
           { value: 'none', label: 'Not set' },
           { value: 'poor', label: 'Poor' },
@@ -301,7 +287,7 @@ function NutritionSection() {
     navigate('/coach/fuel');
   };
   return (
-    <SettingsGroup icon={<IconUtensils />} title="Nutrition preferences (AdaptFit Fuel)" subtitle={status} id="nutrition">
+    <SettingsGroup icon={<IconUtensils />} title="Nutrition (AdaptFit Fuel)" subtitle={status} id="nutrition">
       <p className="small muted">Optional calorie and protein estimates, eating habits, cuisines, dietary requirements, and Singapore meal ideas. Nothing here is needed to train.</p>
       {n?.status === 'complete' && (
         <ul className="bullet-list small" data-testid="settings-fuel-summary">
@@ -329,10 +315,11 @@ function UnitsSection() {
   const id = useId();
   const zones = ZONES.includes(profile.timezone) ? ZONES : [profile.timezone, ...ZONES];
   return (
-    <SettingsGroup icon={<IconTrain />} title="Units & region" subtitle={`${profile.weightUnit} · ${profile.timezone}`}>
+    <SettingsGroup icon={<IconTrain />} title="Units & weight conventions" subtitle={`${profile.weightUnit} · ${profile.timezone}`}>
+      <p className="small muted">How a load is measured (total, per side, per dumbbell, added, assisted) is set per exercise in your note. When a note just says “30 kg” for a plate-loaded lift, AdaptFit asks instead of guessing, and never assumes a bar weight.</p>
       <RadioGroup
         legend="Weight unit for new sessions"
-        name="s-unit"
+        name="s-unit" layout="row"
         choices={[
           { value: 'kg', label: 'Kilograms (kg)' },
           { value: 'lb', label: 'Pounds (lb)' },
@@ -354,21 +341,6 @@ function UnitsSection() {
         </select>
       </div>
       <StatusLine status={status} />
-    </SettingsGroup>
-  );
-}
-
-function GamificationSection() {
-  const { profile, save, status } = useProfileSaver();
-  return (
-    <SettingsGroup icon={<IconGame />} title="Gamification" subtitle={profile.gamification ? 'Character, XP & missions on' : 'Off'}>
-      <Switch label="Show character, XP, and missions" hint="Turning this off hides the RPG layer. Workouts, history, and progress are unaffected." checked={profile.gamification} onChange={(v) => void save({ gamification: v }, v ? 'Gamification on.' : 'Gamification off.')} />
-      {profile.gamification && (
-        <a href="#/journey" className="link-btn">
-          Change character in Journey →
-        </a>
-      )}
-      <StatusLine status={status} testId="gamification-status" />
     </SettingsGroup>
   );
 }
@@ -404,7 +376,7 @@ function DataSection() {
   return (
     <SettingsGroup icon={<IconDatabase />} title="Data & backups" subtitle="Export · Restore · Reset" defaultOpen>
       <p className="small muted">
-        Everything stays in this browser on this device. Storage is per device and web address and can be cleared by the browser. Export regularly; backups contain your training and lifestyle data, so keep them private.
+        Everything stays in this browser on this device, including deleted notes’ last copies. Storage is per device and web address and can be cleared by the browser. Export regularly; backups contain your training and lifestyle data, so keep them private.
       </p>
       <button type="button" className="btn btn-secondary btn-block" onClick={doExport}>
         Export backup (JSON)
@@ -430,7 +402,7 @@ function DataSection() {
           onConfirm={async () => {
             await resetAllData();
             announce('All AdaptFit data on this device was erased.');
-            navigate('/train');
+            navigate('/plan');
           }}
         >
           <p>This permanently removes your profile, programmes, workouts, coaching history, and progress from this device. Export a backup first if you might want it back.</p>
@@ -441,24 +413,23 @@ function DataSection() {
 }
 
 function PrivacySection() {
-  const pwa = usePwa();
   const items: ReactNode[] = [
     'No account, cloud storage, analytics, ads, or third-party scripts.',
-    'Training, lifestyle, and character data never leave this device unless you export a backup.',
+    'Training, lifestyle, and nutrition data never leave this device unless you export a backup.',
     'Coaching runs locally with transparent rules — no external AI service.',
     'AdaptFit offers general fitness guidance for adults. It does not diagnose, give medical clearance, or replace a qualified professional.',
   ];
   return (
-    <SettingsGroup icon={<IconShield />} title="Privacy & about" subtitle={pwa.offlineReady ? 'Offline ready' : 'Local-first'}>
+    <SettingsGroup icon={<IconShield />} title="Privacy & about" subtitle="Local-first">
       <ul className="bullet-list">
         {items.map((t, i) => (
           <li key={i}>{t}</li>
         ))}
       </ul>
-      <p className="small row">
-        <IconInfo size={16} /> Offline: {pwa.offlineReady ? 'ready — works without a connection' : pwa.supported ? 'not ready yet (needs one online load of the production build)' : 'not supported in this browser'}
-      </p>
-      <p className="xs faint">AdaptFit V0.2</p>
+      <p className="xs faint">AdaptFit V0.5 · Intelligent Workout Notebook</p>
+      <a href="#/admin" className="btn btn-secondary">
+        Admin: this device’s storage and usage
+      </a>
     </SettingsGroup>
   );
 }

@@ -1,12 +1,10 @@
 import { createContext, useContext } from 'react';
 import type { AppData } from '../data/useAppData';
-import type { RpgState } from '../domain/rpg';
 import type { Profile } from '../domain/types';
 
 export interface AppContextValue {
   data: AppData & { profile: Profile };
   today: string;
-  rpg: RpgState;
 }
 
 export const AppContext = createContext<AppContextValue | null>(null);

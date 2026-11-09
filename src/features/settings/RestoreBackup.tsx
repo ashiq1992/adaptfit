@@ -45,7 +45,7 @@ export function RestoreBackup({ hasExistingData }: { hasExistingData: boolean })
       setStatus({ tone: 'ok', text: 'Backup restored.' });
       announce('Backup restored.');
       setPending(null);
-      navigate('/train');
+      navigate('/plan');
     } catch (err) {
       setStatus({ tone: 'error', text: err instanceof Error ? err.message : 'Restore failed. Your existing data was kept.' });
       setPending(null);

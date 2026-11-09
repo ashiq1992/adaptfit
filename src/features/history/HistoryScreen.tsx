@@ -9,7 +9,8 @@ import { ChangeLabel } from '../../ui/controls';
 import { useApp } from '../../ui/DataContext';
 import { ConfirmDialog } from '../../ui/Dialog';
 import { navigate } from '../../ui/hooks';
-import { IconBack, IconEdit, IconFilter, IconRepeat, IconTrash, IconTrophy } from '../../ui/icons';
+import { IconEdit, IconFilter, IconRepeat, IconTrash, IconTrophy } from '../../ui/icons';
+import { ScreenHeader } from '../../ui/ScreenHeader';
 import { longDate, setLabel, summaryLabel } from '../format';
 import { repeatSession } from '../train/start';
 import { EditSessionDialog } from './EditSessionDialog';
@@ -36,20 +37,16 @@ export function HistoryScreen() {
 
   return (
     <div className="screen">
-      <div className="screen-head">
-        <div className="row">
-          <a href="#/train" className="btn btn-ghost btn-icon" aria-label="Back to Train">
-            <IconBack />
-          </a>
-          <div>
-            <h1 tabIndex={-1}>History</h1>
-            <p className="small muted">Completed workouts, newest first.</p>
-          </div>
-        </div>
-        <button type="button" className="btn btn-ghost btn-icon" aria-label="Filter history" aria-expanded={showFilters} aria-controls="hist-filters" onClick={() => setShowFilters((v) => !v)}>
-          <IconFilter />
-        </button>
-      </div>
+      <ScreenHeader
+        back={{ href: '#/progress', label: 'Progress' }}
+        title="History"
+        subtitle="Completed workouts, newest first."
+        actions={
+          <button type="button" className="btn btn-ghost btn-icon" aria-label="Filter history" aria-expanded={showFilters} aria-controls="hist-filters" onClick={() => setShowFilters((v) => !v)}>
+            <IconFilter />
+          </button>
+        }
+      />
 
       <div id="hist-filters" className="card" hidden={!showFilters}>
         <div className="filters">
@@ -97,10 +94,10 @@ export function HistoryScreen() {
       {data.completed.length === 0 ? (
         <section className="card empty">
           <h2 className="card-title">No workouts yet</h2>
-          <p className="muted small">Finish your first workout and it will appear here with every set you completed and how it compares.</p>
+          <p className="muted small">Confirm a weekly update (or log a workout) and it appears here with every recorded set and how it compares.</p>
           <div className="row wrap">
-            <a href="#/train" className="btn btn-primary">
-              Go to Train
+            <a href="#/week" className="btn btn-primary">
+              Update this week
             </a>
             <a href="#/import" className="btn btn-tertiary">
               Import past workouts
@@ -135,17 +132,17 @@ function HistoryCard({ session }: { session: WorkoutSession }) {
     <li className="card hist-card" data-testid="history-item">
       <button type="button" className="hist-summary" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen((o) => !o)}>
         <span className="hist-date">{session.completedLocalDate ? longDate(session.completedLocalDate) : '—'}</span>
-        <span className="pill pill-completed" style={{ gridRow: 'span 2', alignSelf: 'start' }}>
+        <span className="pill pill-completed hist-pill">
           Completed
         </span>
         <span className="hist-name">{session.name}</span>
-        <span className="small muted num" style={{ gridColumn: '1 / -1' }}>
+        <span className="small muted hist-meta">
           {completedExerciseCount(session)} exercises · {strengthSets} strength sets · {describeDuration(session)}
           {session.source === 'import' ? ' · imported' : session.source === 'legacy' ? ' · V0.1 record' : ''}
           {session.editedAt ? ' · corrected' : ''}
         </span>
         {comparable.length > 0 && (
-          <span className="change-list" style={{ gridColumn: '1 / -1' }}>
+          <span className="change-list hist-changes">
             {comparable.slice(0, 3).map((c) => (
               <ChangeLabel key={c.key} name={c.name} kind={c.comparison.kind} label={c.comparison.label} />
             ))}
@@ -226,11 +223,11 @@ function HistoryCard({ session }: { session: WorkoutSession }) {
           onCancel={() => setConfirmDelete(false)}
           onConfirm={async () => {
             await deleteSession(session.id);
-            announce('Workout deleted. Progress and XP were recalculated.');
+            announce('Workout deleted. Progress was recalculated.');
           }}
         >
           <p>
-            {session.name} on {session.completedLocalDate} will be removed. Progress, personal records, XP, and achievements are recalculated from the remaining history.
+            {session.name} on {session.completedLocalDate} will be removed. Progress, personal bests and reviews are recalculated from the remaining history.
           </p>
         </ConfirmDialog>
       )}

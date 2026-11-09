@@ -39,8 +39,8 @@ export function LineChart({ points, title, unit, height = 180 }: { points: LineP
       <svg className="chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${title}: ${points.map((p) => `${p.label} ${p.value} ${unit}`).join(', ')}`}>
         <defs>
           <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#00d6a3" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="#00d6a3" stopOpacity="0" />
+            <stop offset="0%" className="area-stop-top" />
+            <stop offset="100%" className="area-stop-bottom" />
           </linearGradient>
         </defs>
         {ticks.map((t) => (
@@ -80,7 +80,7 @@ export interface WeekBar {
   target: number;
 }
 
-/** Planned (dashed outline) vs completed (teal) sessions per week. */
+/** Planned (dashed outline) vs completed (blue ink) sessions per week. */
 export function WeekBars({ weeks, title }: { weeks: WeekBar[]; title: string }) {
   const width = 340;
   const height = 150;

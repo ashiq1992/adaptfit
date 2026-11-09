@@ -7,7 +7,7 @@ describe('Programmes', () => {
   it('validates names, days, sets, rep ranges, and rest', () => {
     const p = fourDayProgramme();
     expect(validateProgramme(p)).toEqual([]);
-    const bad = { ...p, name: ' ', days: [{ ...p.days[0]!, exercises: [{ ...p.days[0]!.exercises[0]!, repMin: 12, repMax: 8, sets: 0 }] }, { id: 'x', name: 'Empty', exercises: [] }] };
+    const bad = { ...p, name: ' ', days: [{ ...p.days[0]!, exercises: [{ ...p.days[0]!.exercises[0]!, repMin: 12, repMax: 8, sets: 0 }] }, { id: 'x', name: 'Empty', exercises: [], notes: '' }] };
     const issues = validateProgramme(bad).map((i) => i.message);
     expect(issues).toEqual(expect.arrayContaining(['Give the programme a name.', 'Empty has no exercises.']));
     expect(issues.some((m) => /rep range/.test(m))).toBe(true);

@@ -1,25 +1,25 @@
-# AdaptFit — your training partner for real life
+# AdaptFit — the intelligent workout notebook
 
-A local-first gym companion for experienced lifters:
+**Train simply. Progress intelligently.**
 
-- **Programmes:** get a recommended programme or bring your own, and set planned starting weights.
-- **Logging:** log sets in a tap, prefilled from last session.
-- **Progress:** track strength and bodyweight honestly.
-- **Nutrition (optional):** calorie and protein estimates with Singapore meal ideas.
-- **Character:** level up an original pixel character.
+- **Your workout reads like a note.** Tap any line to change it. No need to start a workout or log every set.
+- **Update once a week.** Copy last week, change only what was different, mark what you did, confirm.
+- **Paste from Notes.** Bring in workouts you already keep in Apple Notes or Google Keep.
+- **Honest analysis.** Progress, personal bests and a short weekly review, from confirmed records only.
+- **Optional extras.** Set-by-set live logging, programme recommendations, and AdaptFit Fuel (nutrition).
 
-No account, no cloud, no tracking: everything stays in this browser on this device.
+No account, no cloud, no tracking, no AI service: everything stays in this browser on this device.
 
-Version **0.3.0**. See [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
+Version **0.5.0** ("Ink & Paper": warm paper, black ink for the plan, blue ink for what you did, a highlighter for progress; Night theme in Settings → Appearance). See [`docs/CHANGELOG.md`](docs/CHANGELOG.md) and the brand board [`docs/brand/ink-and-paper.html`](docs/brand/ink-and-paper.html).
 
 ## ⚠️ Before upgrading — back up first
 
-V0.3 migrates your data automatically (database v3 → v4). It keeps every workout, programme, and check-in, moves V0.2 bodyweight measurements into the new bodyweight log, and stores a copy of every changed record. Take a backup anyway:
+V0.4 upgrades your data automatically (database v4 → v5). It only adds fields: workouts, bodyweight, nutrition and coaching history are unchanged, and a copy of your programmes is kept. The game layer (characters, XP) is no longer shown, but its settings stay in your data.
 
-1. Open the app at the **same address you normally use** (e.g. `http://127.0.0.1:4173`). Your installed version keeps running from its offline cache until you choose to update.
-2. In the current version: **Settings → Export backup (JSON)**. Keep the file somewhere private.
+1. Open the app at the address you normally use (e.g. `http://127.0.0.1:4173`).
+2. **Settings → Data & backups → Export backup (JSON).** Keep the file private.
 3. Build and run the new version (below). When the app shows "A new version is ready", tap **Refresh**.
-4. Rollback: V0.3 **Settings → Restore** accepts V0.1, V0.2, and V0.3 backups. To return to V0.2 itself, see "Rollback" in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+4. To go back to V0.3, see "Rollback" in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (branch `legacy/v0.3-rpg`).
 
 ## Quick start (Windows PowerShell)
 
@@ -34,7 +34,11 @@ npm run preview          # → http://127.0.0.1:4173
 
 Development with hot reload: `npm run dev` → http://127.0.0.1:5173 (no service worker in dev).
 
-Browser data is per address. `127.0.0.1:4173`, `127.0.0.1:5173`, the test server `:4317`, and `localhost` are all separate, so always use the same address for your real data.
+Browser data is per address: `127.0.0.1:4173`, `:5173`, the test server `:4317` and `localhost` are separate.
+
+### On your phone
+
+Installing and offline mode need HTTPS. See [`docs/PWA_AND_NATIVE.md`](docs/PWA_AND_NATIVE.md) for iPhone and Android steps and hosting options. For a quick look on the same Wi-Fi (no install, no offline): `npx vite preview --host 0.0.0.0`, then open `http://<your PC's IP>:4173` in Safari or Chrome.
 
 ## Commands
 
@@ -46,78 +50,60 @@ Browser data is per address. `127.0.0.1:4173`, `127.0.0.1:5173`, the test server
 | `npm run build` | Typecheck + production build with service worker |
 | `npm run preview` | Serve the production build, 127.0.0.1:4173 |
 | `npm run lint` / `npm run typecheck` | ESLint / strict TypeScript |
-| `npm run test` | Vitest unit + integration (single run) |
-| `npm run test:coverage` | Same, with V8 coverage (text + `coverage/index.html`) |
-| `npm run test:e2e` | Fresh build, then Playwright against its own server on 127.0.0.1:4317 |
+| `npm run test` | Vitest unit + integration |
+| `npm run test:coverage` | Same, with coverage |
+| `npm run test:e2e` | Fresh build, then Playwright on 127.0.0.1:4317 |
 | `npm run check` | lint → typecheck → test → build |
-| `FDC_API_KEY=… node scripts/fetch-fdc.mjs` | Dev-time only: refresh ingredient nutrition from USDA FoodData Central |
-
-No global installs are needed. Downloads happen only during setup; daily use is fully local.
+| `node scripts/generate-icons.mjs` | Regenerate app icon, favicon and iOS splash screens |
+| `FDC_API_KEY=… node scripts/fetch-fdc.mjs` | Dev-time only: refresh Fuel ingredient data |
 
 ## Using AdaptFit
 
-1. **Set up.** Pick your goal, then choose how to start your programme: **Recommend a programme**, **Use my existing programme** (paste it), or **Build from scratch**. Choose your character (Warrior, Ranger, Scholar, or Engineer) — it's cosmetic only.
-2. **Recommended programmes.** Five quick questions, already filled in from what you've told AdaptFit.
-   - You get a ranked shortlist with why each fits, its trade-offs, honest session times (warm-up and rest included), and weekly sets per muscle.
-   - Compare all five, then preview and customise: swap exercises, change sets and reps, set **planned starting weights**, and pick training days.
-   - Your existing programme is never replaced unless you choose to.
-3. **Train.** Sets are prefilled from your last comparable session, else your planned starting weight, else left blank. Tap to confirm each set; nothing is marked done for you.
-4. **Progress.** Strength trends and consistency. **Bodyweight** has its own optional log, with a chart, weekly averages, and a trend. Weigh in as often as you like.
-5. **Coach.**
-   - **This Week:** planned, done, and remaining sessions; adjusted weeks; Fuel and bodyweight context.
-   - **Insights:** plateaus and training/nutrition context, honest about missing data.
-   - **Fuel:** optional nutrition.
-   - **History.**
-
-   Nothing changes without Accept.
-6. **AdaptFit Fuel** (optional).
-   - Answer a few questions and get estimated resting energy, a maintenance range, a calorie target, and a protein range. Every number is editable and explained.
-   - Then tell it how you eat (cook, buy, or mixed), your cuisines, dietary requirements, and allergies to get a daily Singapore meal suggestion. You can swap, switch cook/buy, change portions, and save favourites.
-   - Hawker dishes show "Nutrition estimate unavailable" rather than a guess, and AdaptFit never claims a dish or outlet is halal-certified.
-7. **Journey.** Level, XP, stats, achievements, missions, and **Style** (change character; your XP stays).
+1. **Start.** Choose kg or lb and a goal, then **Paste from Notes**, **Choose a programme** (or get a recommendation), or **Write my own**.
+2. **Plan** is the main screen: today's (or the next) workout, this week, your workout notes, plus Browse programmes, Import from Notes and Previous weeks.
+3. **Workout note.** Read it at the gym. Tap a line to edit it (e.g. `3 sets × 9 reps — 30 kg/side`) and tap Done; it saves itself. Use ⋯ to edit a day as text, duplicate, copy, or log sets live. Amber questions mean AdaptFit isn't sure (for example "total or per side?") and asks rather than guesses. **Undo** reverts the last change.
+4. **Weekly update.** Plan → Update this week → **Copy previous week**. Change only what differs, mark sessions **Done / Partly done / Skipped** (or *Mark all as done*), check the day, **Confirm week**. You get a short review straight away.
+5. **Progress.** Status per exercise, personal bests, milestones, sessions per week, optional bodyweight; tap an exercise for charts.
+6. **Coach.** The latest weekly review, suggestions you can Accept / Reject / Later, possible plateaus, "short on time this week?", and optional nutrition (Fuel). Nothing changes without your approval.
 
 ## Backup, restore, reset
 
-Find these in **Settings → Data & backups**.
-
-- **Export** downloads `adaptfit-backup-YYYY-MM-DD.json` (format 3). It includes the profile, character, programmes with planned weights, workouts, check-ins, coaching decisions, week plans, measurements, bodyweight log, nutrition profile, meal plans, and legacy copies.
-- **Restore** checks size, schema, and consistency, shows a preview, and replaces data in one transaction. Formats 1 and 2 are migrated on restore.
-- **Erase all data…** asks for confirmation first.
+**Settings → Data & backups.** Export downloads `adaptfit-backup-YYYY-MM-DD.json` (format 4: everything, including weekly records, note history and imports). Restore validates the file, shows a preview, and replaces data in one transaction; formats 1–3 are upgraded on restore. Erase all data asks first.
 
 ## Project docs
 
 | Doc | Contents |
 |---|---|
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Layers, rules, V0.3 data model, migration, rollback, scheduling root cause |
-| [`docs/USER_STORIES_V0.3.md`](docs/USER_STORIES_V0.3.md) | AF-00–AF-14 (97 points): acceptance criteria, status, tests, limitations |
-| [`docs/STORYBOARD_V0.3.md`](docs/STORYBOARD_V0.3.md) | Journeys 1–8 |
-| [`docs/SOURCES.md`](docs/SOURCES.md) | Research and source registry, licensing, FDC retrieval log |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Layers, data model, migrations, V0.4: notes editor, weekly workflow, parser, analysis, coaching, rollback |
+| [`docs/USER_STORIES_V0.4.md`](docs/USER_STORIES_V0.4.md) | Stories, status, incomplete items, before/after comparison, navigation map |
+| [`docs/PWA_AND_NATIVE.md`](docs/PWA_AND_NATIVE.md) | Install on iPhone and Android, HTTPS, future Capacitor packaging |
 | [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md) / [`docs/TEST_RESULTS.md`](docs/TEST_RESULTS.md) | Test mapping and exact results |
-| [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) | Tokens and components |
-| [`docs/screenshots/v0.3/`](docs/screenshots/v0.3) | 9 screens at 375/390/430/768/1280 px (V0.2 captures in `v0.2/`) |
+| [`docs/SOURCES.md`](docs/SOURCES.md) | Research and nutrition data sources |
+| [`docs/screenshots/v0.5/`](docs/screenshots/v0.5) | 8 screens at 375/390/430/768/1280 px (Paper) and 390 px (Night) |
+| [`docs/brand/ink-and-paper.html`](docs/brand/ink-and-paper.html) | Brand board: logo, colours and their jobs, typography, components, voice |
+| [`docs/DEPLOY_FREE.md`](docs/DEPLOY_FREE.md) | Put the app on your phone for free, with offline use (GitHub Pages, Cloudflare Pages, Netlify Drop) |
+| [`docs/ADMIN_AND_ANALYTICS.md`](docs/ADMIN_AND_ANALYTICS.md) | What the Admin page shows, and what an all-users view would need (not built) |
+| [`docs/STRATEGY.md`](docs/STRATEGY.md) | Competitors, uniqueness, monetisation, next features, 30-day validation plan |
 
-## Test status (2026-11-06)
+## Test status (2026-11-09)
 
 | Check | Result |
 |---|---|
 | `npm run check` | ✅ |
-| Vitest | 182 tests ✅ |
-| Playwright | 33 tests ✅ (66/66 over two repeats) |
-| axe WCAG 2.1 AA | 0 violations |
+| Vitest | 224 tests ✅ |
+| Playwright | 31 tests ✅ (62/62 over two repeats) |
+| axe WCAG 2.1 AA | 0 violations (Paper and Night) |
 | `npm audit --omit=dev` | 0 |
 
 ## Known limitations
 
-- **Browsers:** verified in Chromium only (desktop and mobile viewports). Not tested on Firefox, Safari/WebKit, or physical devices.
-- **Character art:** original **placeholder** pixel art drawn in code, not final artwork.
-- **Food nutrition data:**
-  - Only 9 ingredient records were retrieved from USDA FoodData Central before the demo API key's rate limit. Recipes using other ingredients show partial estimates until `scripts/fetch-fdc.mjs` is run with a free key.
-  - HPB SG FoodID data isn't bundled (no redistribution licence found), so hawker dishes have no nutrition numbers.
-- **Food prices:** cost bands are rough categories, not prices. There are no live restaurant lookups.
-- **Estimates:** energy figures are estimates based on standard equations and approximations; revise them from your bodyweight trend. Plateau and nutrition coaching rules are conservative heuristics, not a diagnosis.
-- **Research:** the PubMed article named in the brief (41843416) couldn't be retrieved. Literature references not retrieved this sprint are marked "Not accessed" in docs/SOURCES.md.
-- **Dev tooling:** the 15 moderate/low `npm audit` advisories in dev-only build tooling remain; runtime dependencies have none.
+- **Devices:** verified in Chromium with phone-sized viewports only, not on a physical iPhone/Android, in installed mode, or with a real on-screen keyboard.
+- **Usability timing:** tap counts are measured automatically; the "update a week in under 60 seconds" target hasn't been timed with a person.
+- **Parser:** common English gym notation only; no fuzzy spelling, supersets or RPE. Anything not understood is kept as text.
+- **Notifications:** in-app only (no push).
+- **Nutrition data:** unchanged from V0.3 (partial ingredient data; hawker dishes show no numbers).
+- **Dev tooling:** 15 moderate/low `npm audit` advisories in build tools; runtime dependencies have none.
 
 ## Safety
 
-AdaptFit offers general fitness and nutrition guidance for adults. It does not diagnose, give medical clearance, program around injuries, or change your programme or targets without approval. Users under 18, pregnant or breastfeeding users, and anyone with an eating disorder or a condition needing specialised nutrition get no automatic calorie target, and are encouraged to seek professional advice.
+AdaptFit offers general fitness and nutrition guidance for adults. It does not diagnose, give medical clearance, or change your programme or targets without approval.

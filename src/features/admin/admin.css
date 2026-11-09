@@ -1,0 +1,15 @@
+/* Admin (on-device diagnostics). Tokens only — see src/ui/tokens.css. */
+.admin-notice { border-left: 3px solid var(--attention); }
+.admin-table th[scope='row'] {
+  font-family: var(--font);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-2);
+  border-top: 1px solid var(--rule);
+  padding: 8px var(--space-3) 8px 0;
+  vertical-align: top;
+}
+.admin-table td { text-align: right; overflow-wrap: anywhere; }
+.admin-table tr:first-child > * { border-top: 0; }

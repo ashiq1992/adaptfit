@@ -12,7 +12,9 @@ import type {
   NutritionProfile,
   Profile,
   Programme,
+  TrainingWeek,
   WeekPlan,
+  WorkoutImportRecord,
   WorkoutSession,
 } from '../domain/types';
 import { getDb, personalTables } from './db';
@@ -275,6 +277,155 @@ export function markWeekReviewed(weekStart: string): Promise<void> {
     await db.transaction('rw', db.meta, async () => {
       const weeks = ((await db.meta.get('reviewedWeeks'))?.value as string[] | undefined) ?? [];
       if (!weeks.includes(weekStart)) await db.meta.put({ key: 'reviewedWeeks', value: [...weeks, weekStart] });
+    });
+  });
+}
+
+// ── Workout notes (V0.4) ───────────────────────────────────────────
+
+/** Revisions kept per note for undo and recovery. */
+export const MAX_NOTE_REVISIONS = 50;
+
+/**
+ * Save an edited note. The version being replaced is kept as a revision in
+ * the same transaction, so every edit can be undone.
+ */
+export function saveNote(next: Programme, reason: string, now: Date, opts: { activate?: boolean; created?: CustomExercise[] } = {}): Promise<void> {
+  return guard('save your note', async () => {
+    const db = getDb();
+    await db.transaction('rw', [db.programmes, db.noteRevisions, db.customExercises], async () => {
+      const current = await db.programmes.get(next.id);
+      if (current) {
+        await db.noteRevisions.add({ id: newId(), programmeId: next.id, at: now.toISOString(), reason: reason.slice(0, 200), snapshot: current });
+        const revs = await db.noteRevisions.where('programmeId').equals(next.id).sortBy('at');
+        for (const r of revs.slice(0, Math.max(0, revs.length - MAX_NOTE_REVISIONS))) await db.noteRevisions.delete(r.id);
+      }
+      for (const c of opts.created ?? []) if (!(await db.customExercises.get(c.id))) await db.customExercises.add(c);
+      if (opts.activate) {
+        for (const o of await db.programmes.toArray()) if (o.id !== next.id && o.isActive) await db.programmes.put({ ...o, isActive: false });
+      }
+      await db.programmes.put({ ...next, isActive: opts.activate ? true : next.isActive, updatedAt: now.toISOString() });
+    });
+  });
+}
+
+/** Restore the most recent revision of a note. Returns the restored note, or null if there is nothing to undo. */
+export function undoNote(programmeId: string): Promise<Programme | null> {
+  return guard('undo your edit', async () => {
+    const db = getDb();
+    return db.transaction('rw', [db.programmes, db.noteRevisions], async () => {
+      const revs = await db.noteRevisions.where('programmeId').equals(programmeId).sortBy('at');
+      const last = revs[revs.length - 1];
+      if (!last) return null;
+      const current = await db.programmes.get(programmeId);
+      // Undo restores content only; which note is active stays as it is.
+      const restored = { ...last.snapshot, isActive: current?.isActive ?? last.snapshot.isActive };
+      await db.programmes.put(restored);
+      await db.noteRevisions.delete(last.id);
+      return restored;
+    });
+  });
+}
+
+export const countNoteRevisions = (programmeId: string) => guard('load note history', () => getDb().noteRevisions.where('programmeId').equals(programmeId).count());
+
+/** Delete a note. A final revision is kept (and exported in backups) so it can be recovered. */
+export function deleteNote(id: string, now: Date): Promise<void> {
+  return guard('delete the note', async () => {
+    const db = getDb();
+    await db.transaction('rw', [db.programmes, db.noteRevisions], async () => {
+      const current = await db.programmes.get(id);
+      if (!current) return;
+      await db.noteRevisions.add({ id: newId(), programmeId: id, at: now.toISOString(), reason: 'Deleted', snapshot: current });
+      await db.programmes.delete(id);
+    });
+  });
+}
+
+// ── Weekly updates (V0.4) ──────────────────────────────────────────
+
+export const getTrainingWeek = (weekStart: string) => guard('load the week', () => getDb().trainingWeeks.get(weekStart));
+export const listTrainingWeeks = () => guard('load your weeks', () => getDb().trainingWeeks.orderBy('weekStart').toArray());
+
+/** Save a draft. A confirmed week is never overwritten by a draft save. */
+export function saveWeekDraft(week: TrainingWeek): Promise<TrainingWeek> {
+  return guard('save your draft', () => {
+    const db = getDb();
+    return db.transaction('rw', db.trainingWeeks, async () => {
+      const current = await db.trainingWeeks.get(week.weekStart);
+      if (current?.status === 'confirmed' && week.status === 'draft') throw new StorageError('This week is already confirmed. Edit it from Previous weeks.');
+      await db.trainingWeeks.put(week);
+      return week;
+    });
+  });
+}
+
+/** In-progress edits to an already confirmed week are kept apart until re-confirmed. */
+export const saveWeekEdit = (week: TrainingWeek) => guard('save your changes', async () => void (await getDb().meta.put({ key: `week-edit:${week.weekStart}`, value: week })));
+export const getWeekEdit = (weekStart: string) => guard('load your changes', async () => ((await getDb().meta.get(`week-edit:${weekStart}`))?.value as TrainingWeek | undefined) ?? null);
+export const clearWeekEdit = (weekStart: string) => guard('clear your changes', async () => void (await getDb().meta.delete(`week-edit:${weekStart}`)));
+
+/**
+ * Confirm a week: write its workout records, remove generated ones that no
+ * longer apply, store the week, and optionally update the note's reference
+ * weights — all in one transaction.
+ */
+export function confirmWeek(week: TrainingWeek, upserts: readonly WorkoutSession[], removeIds: readonly string[], programmeUpdate: Programme | null, now: Date = new Date()): Promise<void> {
+  return guard('confirm your week', async () => {
+    const db = getDb();
+    await db.transaction('rw', [db.trainingWeeks, db.sessions, db.programmes, db.noteRevisions, db.meta], async () => {
+      for (const id of removeIds) {
+        const s = await db.sessions.get(id);
+        if (s && s.source === 'weekly') await db.sessions.delete(id);
+      }
+      for (const s of upserts) await db.sessions.put(s);
+      await db.trainingWeeks.put(week);
+      await db.meta.delete(`week-edit:${week.weekStart}`);
+      if (programmeUpdate) {
+        const current = await db.programmes.get(programmeUpdate.id);
+        if (current) await db.noteRevisions.add({ id: newId(), programmeId: current.id, at: now.toISOString(), reason: `Weights from the week of ${week.weekStart}`, snapshot: current });
+        await db.programmes.put(programmeUpdate);
+      }
+    });
+  });
+}
+
+export function setReviewDismissed(weekStart: string, dismissed: boolean): Promise<void> {
+  return guard('save your review', async () => {
+    const db = getDb();
+    await db.transaction('rw', db.trainingWeeks, async () => {
+      const w = await db.trainingWeeks.get(weekStart);
+      if (w) await db.trainingWeeks.put({ ...w, reviewDismissed: dismissed });
+    });
+  });
+}
+
+/** Discard an unconfirmed draft (confirmed weeks are never deleted here). */
+export function discardWeekDraft(weekStart: string): Promise<void> {
+  return guard('discard the draft', async () => {
+    const db = getDb();
+    await db.transaction('rw', db.trainingWeeks, async () => {
+      const w = await db.trainingWeeks.get(weekStart);
+      if (w?.status === 'draft') await db.trainingWeeks.delete(weekStart);
+    });
+  });
+}
+
+// ── Note imports (V0.4) ────────────────────────────────────────────
+
+export const findImportByHash = (hash: string) => guard('check for duplicates', () => getDb().imports.where('hash').equals(hash).first());
+export const listImports = () => guard('load imports', () => getDb().imports.toArray());
+
+/** Record an import and what it created in one transaction, rejecting an identical earlier import. */
+export function saveImportRecord(record: WorkoutImportRecord, write: () => Promise<void>): Promise<{ saved: boolean }> {
+  return guard('save the import', async () => {
+    const db = getDb();
+    return db.transaction('rw', [db.imports, db.programmes, db.sessions, db.customExercises, db.trainingWeeks, db.noteRevisions], async () => {
+      const dup = await db.imports.where('hash').equals(record.hash).first();
+      if (dup) return { saved: false };
+      await write();
+      await db.imports.add(record);
+      return { saved: true };
     });
   });
 }

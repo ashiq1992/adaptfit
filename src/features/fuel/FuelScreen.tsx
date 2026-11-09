@@ -255,7 +255,7 @@ function FuelSetup({ profile, startStep, editingComplete, onDone }: { profile: N
               onChange={(v) => set({ habits: { ...draft.habits, source: 'mixed', cookedSlots: v } })}
             />
           )}
-          <RadioGroup legend="Meals per day" name="fuel-mpd" choices={[1, 2, 3, 4, 5].map((m) => ({ value: m, label: String(m) }))} value={draft.habits.mealsPerDay ?? 3} onChange={(v) => set({ habits: { ...draft.habits, mealsPerDay: v } })} />
+          <RadioGroup legend="Meals per day" name="fuel-mpd" layout="row" choices={[1, 2, 3, 4, 5].map((m) => ({ value: m, label: String(m) }))} value={draft.habits.mealsPerDay ?? 3} onChange={(v) => set({ habits: { ...draft.habits, mealsPerDay: v } })} />
           <div className="form-grid">
             <NumInput label="Budget per meal (SGD, optional)" value={draft.habits.budgetPerMealSgd} decimal onChange={(v) => set({ habits: { ...draft.habits, budgetPerMealSgd: v } })} />
             <NumInput label="Cooking time available (min, optional)" value={draft.habits.cookingMinutes} onChange={(v) => set({ habits: { ...draft.habits, cookingMinutes: v } })} />
@@ -356,7 +356,7 @@ function TargetsStep({ draft, estimate, onChange }: { draft: NutritionProfile; e
           Recalculate carbs and fat from calories
         </button>
       )}
-      {t?.source === 'manual' && <p className="xs teal">Using your edited targets.</p>}
+      {t?.source === 'manual' && <p className="xs muted">Using your edited targets.</p>}
       <details className="disclosure">
         <summary>How this was calculated</summary>
         <ul className="bullet-list xs">
@@ -536,7 +536,7 @@ function FuelDashboard({ profile, onEdit }: { profile: NutritionProfile; onEdit:
           </section>
         )}
         <p className="xs faint">
-          Home-recipe estimates use USDA FoodData Central ingredient data (public domain). Hawker dishes vary by stall and show “Nutrition estimate unavailable” rather than a guess. AdaptFit never states that a dish or outlet is halal-certified. No XP is ever given for eating less or skipping meals.
+          Home-recipe estimates use USDA FoodData Central ingredient data (public domain). Hawker dishes vary by stall and show “Nutrition estimate unavailable” rather than a guess. AdaptFit never states that a dish or outlet is halal-certified.
         </p>
       </div>
     </div>
@@ -628,7 +628,7 @@ function MealCard(props: {
           <button type="button" className="step-btn" aria-label="Smaller portion" disabled={portion <= 0.5} onClick={() => props.onPortion(portion - 0.25)}>
             <IconMinus size={16} />
           </button>
-          <span className="small num" style={{ minWidth: 48, textAlign: 'center' }} aria-live="polite">
+          <span className="small num count-val-sm" aria-live="polite">
             {portion}×
           </span>
           <button type="button" className="step-btn" aria-label="Larger portion" disabled={portion >= 2} onClick={() => props.onPortion(portion + 0.25)}>

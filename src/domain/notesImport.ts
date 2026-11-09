@@ -67,21 +67,46 @@ export function normalizeName(s: string): string {
     .trim();
 }
 
+/** Gym shorthand → full words, so "db flat press" finds "Dumbbell bench press". */
+const SHORTHAND: [RegExp, string][] = [
+  [/\bdbs?\b/g, 'dumbbell'],
+  [/\bbb\b/g, 'barbell'],
+  [/\binc\b/g, 'incline'],
+  [/\bpd\b/g, 'pulldown'],
+  [/\bext\b/g, 'extension'],
+  [/\bexts\b/g, 'extensions'],
+  [/\bdl\b/g, 'deadlift'],
+  [/\blats\b/g, 'lat'],
+  [/\bpull downs?\b/g, 'pulldown'],
+  [/\bpulldowns\b/g, 'pulldown'],
+  [/\bflat bench press\b/g, 'bench press'],
+  [/\bflat press\b/g, 'bench press'],
+  [/\bflat bench\b/g, 'bench'],
+  [/\bdumbbell flat\b/g, 'dumbbell'],
+];
+
+/** Normalised exercise name with common gym shorthand expanded. */
+export function exerciseKey(s: string): string {
+  let k = normalizeName(s);
+  for (const [re, to] of SHORTHAND) k = k.replace(re, to);
+  return k.replace(/\s+/g, ' ').trim();
+}
+
 function library(custom: readonly CustomExercise[]): LibraryEntry[] {
   const builtIn = EXERCISES.map((e) => ({
     id: e.id,
     name: e.name,
     loadType: e.loadType,
     tags: [...e.tags],
-    keys: [e.name, e.id.replace(/-/g, ' '), ...(e.aliases ?? [])].map(normalizeName),
+    keys: [e.name, e.id.replace(/-/g, ' '), ...(e.aliases ?? [])].map(exerciseKey),
   }));
-  const own = custom.map((c) => ({ id: c.id, name: c.name, loadType: c.loadType, tags: c.tags, keys: [normalizeName(c.name)] }));
+  const own = custom.map((c) => ({ id: c.id, name: c.name, loadType: c.loadType, tags: c.tags, keys: [exerciseKey(c.name)] }));
   return [...own, ...builtIn];
 }
 
 /** Exact (normalised) name or alias match; no fuzzy guessing. */
 export function matchExercise(name: string, custom: readonly CustomExercise[] = []): LibraryEntry | null {
-  const n = normalizeName(name);
+  const n = exerciseKey(name);
   const singular = n.replace(/s$/, '');
   for (const e of library(custom)) if (e.keys.includes(n) || e.keys.includes(singular)) return e;
   return null;

@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AdaptFit — Ink & Paper brand exploration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Paper (light, default) */
+    --paper: #f6f2ea;
+    --paper-2: #efe9dd;
+    --rule: #e0d8c8;
+    --ink: #1c1b18;
+    --ink-2: #5c574d;
+    --ink-3: #716b62;
+    --blue: #24479a;        /* your records: "what you wrote" */
+    --hi: #e6f06a;          /* highlighter: progress only */
+    --amber: #94600f;       /* pencil: "check this" */
+    --red: #b0302a;         /* margin red: errors, destructive */
+    --margin: rgba(176, 48, 42, 0.35);
+
+    --serif: 'Fraunces', Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+  .night {
+    --paper: #161513;
+    --paper-2: #201e1b;
+    --rule: #2f2c27;
+    --ink: #efeae0;
+    --ink-2: #b4ad9f;
+    --ink-3: #9a9385;
+    --blue: #9db4f0;
+    --hi: #d9e45a;
+    --amber: #e0b45c;
+    --red: #f08a84;
+    --margin: rgba(240, 138, 132, 0.28);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e9e4d8; color: #1c1b18; font-family: var(--sans); }
+  .board { max-width: 1240px; margin: 0 auto; padding: 56px 32px 96px; }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+  .eyebrow { font: 500 12px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: #716b62; }
+  section { margin-top: 72px; }
+  section > h2 { font-size: 34px; margin: 10px 0 8px; }
+  section > p.lead { max-width: 680px; color: #5c574d; font-size: 17px; line-height: 1.55; margin: 0 0 28px; }
+  .grid { display: grid; gap: 20px; }
+  .sheet { background: #f6f2ea; border-radius: 18px; padding: 28px; box-shadow: 0 1px 0 #d8d0bf, 0 12px 30px rgba(60, 50, 30, 0.08); }
+
+  /* Hero */
+  .hero { display: grid; grid-template-columns: 1.2fr 1fr; gap: 32px; align-items: center; }
+  .wordmark { font-family: var(--serif); font-weight: 600; font-size: 88px; letter-spacing: -0.03em; line-height: 1; }
+  .wordmark i { font-weight: 400; }
+  .tagline { font-family: var(--serif); font-style: italic; font-size: 28px; color: #5c574d; margin-top: 14px; }
+  .hero p { font-size: 17px; line-height: 1.6; color: #5c574d; max-width: 560px; }
+  .mark-row { display: flex; gap: 20px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .mark-row figure { margin: 0; text-align: center; }
+  .mark-row figcaption { font: 12px var(--mono); color: #716b62; margin-top: 10px; }
+
+  /* Principles */
+  .principles { grid-template-columns: repeat(4, 1fr); }
+  .principle h3 { font-size: 21px; margin-bottom: 8px; }
+  .principle p { margin: 0; color: #5c574d; line-height: 1.5; font-size: 15px; }
+  .principle .n { font: 600 13px var(--mono); color: #b0302a; margin-bottom: 14px; display: block; }
+
+  /* Palette */
+  .palette { grid-template-columns: repeat(4, 1fr); }
+  .swatch { border-radius: 14px; overflow: hidden; background: #f6f2ea; box-shadow: 0 1px 0 #d8d0bf; }
+  .swatch .chip { height: 96px; display: flex; align-items: flex-end; padding: 12px; font: 500 12px var(--mono); }
+  .swatch .meta { padding: 12px 14px 16px; }
+  .swatch b { font-family: var(--serif); font-size: 18px; font-weight: 600; display: block; }
+  .swatch span { font-size: 13px; color: #5c574d; line-height: 1.45; display: block; margin-top: 4px; }
+  .roles { margin-top: 24px; width: 100%; border-collapse: collapse; font-size: 15px; }
+  .roles td, .roles th { text-align: left; padding: 12px 10px; border-bottom: 1px solid #e0d8c8; vertical-align: top; }
+  .roles th { font: 500 12px var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: #716b62; }
+
+  /* Type */
+  .type { grid-template-columns: 1fr 1fr 1fr; }
+  .spec .big { font-size: 64px; line-height: 1; margin: 12px 0 14px; }
+  .spec p { color: #5c574d; font-size: 14px; line-height: 1.5; margin: 0; }
+  .scale { margin-top: 24px; }
+  .scale div { display: grid; grid-template-columns: 150px 1fr; align-items: baseline; padding: 10px 0; border-bottom: 1px solid #e0d8c8; }
+  .scale code { font: 12px var(--mono); color: #716b62; }
+
+  /* Components */
+  .comps { grid-template-columns: 1fr 1fr; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 14px 0 22px; }
+  .btn { font: 600 16px var(--sans); border-radius: 12px; padding: 13px 20px; border: 1.5px solid var(--ink); background: var(--ink); color: var(--paper); }
+  .btn.sec { background: transparent; color: var(--ink); }
+  .btn.txt { background: none; border-color: transparent; color: var(--ink); text-decoration: underline; text-underline-offset: 4px; padding: 13px 6px; }
+  .btn.danger { background: none; border-color: var(--red); color: var(--red); }
+  .seg { display: inline-flex; border: 1.5px solid var(--ink); border-radius: 12px; overflow: hidden; }
+  .seg span { padding: 10px 16px; font-weight: 600; font-size: 15px; }
+  .seg .on { background: var(--ink); color: var(--paper); }
+  .hl { background: linear-gradient(transparent 12%, var(--hi) 12%, var(--hi) 88%, transparent 88%); padding: 0 4px; margin: 0 -2px; border-radius: 3px; color: #1c1b18; }
+  .status { font: 500 13px var(--mono); }
+  .status.up { padding: 3px 6px; }
+  .status.plat { color: var(--amber); text-decoration: underline wavy; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+  .status.down { color: var(--red); }
+  .status.flat { color: var(--ink-3); }
+  .q { border-left: 3px solid var(--amber); padding: 10px 14px; background: color-mix(in srgb, var(--amber) 7%, transparent); border-radius: 0 10px 10px 0; }
+  .q b { color: var(--amber); font-weight: 600; font-size: 15px; }
+  .pill { font: 500 14px var(--sans); border: 1.5px solid var(--rule); border-radius: 999px; padding: 8px 14px; background: var(--paper); color: var(--ink); }
+  .pill.on { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+  .field { font: 500 17px var(--mono); color: var(--blue); border: 0; border-bottom: 1.5px solid var(--ink); background: transparent; padding: 8px 2px; width: 100%; }
+
+  /* Phones */
+  .phones { display: flex; gap: 28px; flex-wrap: wrap; justify-content: center; }
+  .phone-wrap { text-align: center; }
+  .phone-wrap figcaption { font: 12px var(--mono); color: #716b62; margin-top: 14px; }
+  .phone { width: 360px; height: 760px; border-radius: 44px; background: var(--paper); color: var(--ink); border: 10px solid #1c1b18; position: relative; overflow: hidden; text-align: left; box-shadow: 0 30px 60px rgba(40, 30, 10, 0.18); }
+  .phone .status-bar { height: 44px; display: flex; justify-content: space-between; padding: 14px 26px 0; font: 600 14px var(--sans); }
+  .scr { padding: 6px 22px 100px; height: calc(100% - 44px); overflow: hidden; }
+  .top { display: flex; justify-content: space-between; align-items: center; height: 36px; }
+  .back { font-size: 16px; color: var(--ink); }
+  .icon { width: 22px; height: 22px; stroke: var(--ink); fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .date { font: 500 12px var(--mono); color: var(--ink-3); letter-spacing: 0.04em; text-transform: uppercase; }
+  .scr h1 { font-size: 36px; line-height: 1.05; margin: 6px 0 4px; }
+  .scr h1 i { font-weight: 400; }
+  .sub { color: var(--ink-2); font-size: 15px; margin: 0 0 18px; }
+  .ex { padding: 12px 0; border-bottom: 1px solid var(--rule); }
+  .ex .name { font-size: 16px; font-weight: 600; }
+  .ex .plan { font: 400 15px var(--mono); color: var(--ink); margin-top: 3px; }
+  .ex .did { font: 500 14px var(--mono); color: var(--blue); margin-top: 2px; }
+  .ex .did small { font: 400 12px var(--sans); color: var(--ink-3); margin-right: 6px; }
+  .tabs { position: absolute; left: 0; right: 0; bottom: 0; height: 78px; background: var(--paper); border-top: 1px solid var(--rule); display: flex; justify-content: space-around; padding-top: 10px; }
+  .tabs div { font: 500 12px var(--sans); color: var(--ink-3); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .tabs div.on { color: var(--ink); font-weight: 700; }
+  .tabs div.on span { box-shadow: inset 0 -4px 0 var(--hi); padding: 0 3px; }
+  .tabs svg { stroke: currentColor; }
+  .weekstrip { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; margin: 10px 0 6px; }
+  .weekstrip div { font: 500 12px var(--mono); color: var(--ink-3); }
+  .weekstrip b { display: block; margin: 6px auto 0; width: 30px; height: 30px; border-radius: 50%; border: 1.5px dashed var(--rule); font: 600 15px var(--sans); line-height: 27px; color: var(--blue); }
+  .weekstrip b.done { border: 1.5px solid var(--blue); }
+  .weekstrip b.plan { border-color: var(--ink-3); }
+  .weekstrip .today { color: var(--ink); font-weight: 700; }
+  .h2 { font-family: var(--serif); font-size: 22px; font-weight: 600; margin: 24px 0 4px; display: flex; justify-content: space-between; align-items: baseline; }
+  .h2 a { font: 500 14px var(--sans); color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+  .list-row { display: flex; justify-content: space-between; align-items: center; padding: 13px 0; border-bottom: 1px solid var(--rule); font-size: 16px; }
+  .list-row small { display: block; color: var(--ink-3); font-size: 13px; margin-top: 2px; }
+
+  /* Notebook page */
+  .page { position: relative; }
+  .page::before { content: ''; position: absolute; top: 0; bottom: -400px; left: -6px; width: 1.5px; background: var(--margin); }
+  .page .inner { padding-left: 14px; }
+  .day { font-family: var(--serif); font-style: italic; font-size: 22px; margin: 18px 0 2px; display: flex; justify-content: space-between; }
+  .day span { font: 500 12px var(--mono); font-style: normal; color: var(--ink-3); align-self: center; }
+  .ruled .ex { border-bottom: 1px solid var(--rule); }
+  .plus { color: var(--ink-3); font-size: 15px; padding: 12px 0; }
+
+  /* Progress */
+  .bigstat { padding: 18px 0 20px; border-bottom: 1px solid var(--rule); }
+  .bigstat .n { font: 600 52px/1 var(--mono); letter-spacing: -0.03em; }
+  .bigstat p { margin: 8px 0 0; color: var(--ink-2); font-size: 15px; }
+  .prow { display: grid; grid-template-columns: 1fr 70px 96px; align-items: center; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+  .prow .name { font-weight: 600; font-size: 15px; }
+  .prow small { display: block; font: 400 12px var(--mono); color: var(--ink-3); margin-top: 3px; }
+  .prow .st { text-align: right; }
+  .spark { width: 70px; height: 24px; stroke: var(--ink); fill: none; stroke-width: 1.5; }
+
+  .note-callout { background: var(--paper-2); border-radius: 12px; padding: 14px 16px; font-size: 15px; line-height: 1.5; margin-top: 18px; }
+  .note-callout b { font-family: var(--serif); font-size: 17px; }
+
+  .voice { grid-template-columns: 1fr 1fr; }
+  .voice .say { font-family: var(--serif); font-size: 19px; line-height: 1.4; margin: 6px 0 14px; }
+  .voice .no { text-decoration: line-through; text-decoration-color: #b0302a; color: #716b62; }
+
+  .next { grid-template-columns: repeat(3, 1fr); }
+  .next h3 { font-size: 19px; margin-bottom: 6px; }
+  .next p { margin: 0; color: #5c574d; line-height: 1.5; font-size: 15px; }
+
+  @media (max-width: 900px) {
+    .hero, .principles, .palette, .type, .comps, .voice, .next { grid-template-columns: 1fr; }
+    .wordmark { font-size: 64px; }
+  }
+</style>
+</head>
+<body>
+<div class="board">
+
+  <!-- ── Hero ─────────────────────────────────────────── -->
+  <div class="hero">
+    <div>
+      <div class="eyebrow">Brand exploration · Direction A · Ink &amp; Paper</div>
+      <div class="wordmark" style="margin-top:22px">Adapt<i>Fit</i></div>
+      <div class="tagline">Write it down. Watch it add up.</div>
+      <p>AdaptFit is a training notebook that reads its own pages. It should feel like a good paper notebook in a quiet café: warm paper, black ink for the plan, blue ink for what you actually did, and a highlighter that only comes out when you've made progress.</p>
+    </div>
+    <div class="mark-row">
+      <figure>
+        <svg width="132" height="132" viewBox="0 0 64 64" aria-label="App icon on ink">
+          <rect x="0" y="0" width="64" height="64" rx="15" fill="#1c1b18"/>
+          <path d="M16 20 H48 M16 30 H48" stroke="#f6f2ea" stroke-opacity=".35" stroke-width="2.4" stroke-linecap="round"/>
+          <rect x="34" y="35" width="17" height="9" rx="2.5" fill="#e6f06a"/>
+          <path d="M16 46 H30 L37 39 H48" stroke="#f6f2ea" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <figcaption>App icon</figcaption>
+      </figure>
+      <figure>
+        <svg width="132" height="132" viewBox="0 0 64 64" aria-label="Mark on paper">
+          <rect x="1" y="1" width="62" height="62" rx="15" fill="#f6f2ea" stroke="#e0d8c8" stroke-width="1.5"/>
+          <path d="M12 8 V56" stroke="#b0302a" stroke-opacity=".45" stroke-width="1.4"/>
+          <path d="M16 20 H48 M16 30 H48" stroke="#1c1b18" stroke-opacity=".25" stroke-width="2.4" stroke-linecap="round"/>
+          <rect x="34" y="35" width="17" height="9" rx="2.5" fill="#e6f06a"/>
+          <path d="M16 46 H30 L37 39 H48" stroke="#1c1b18" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <figcaption>Mark on paper</figcaption>
+      </figure>
+      <p style="flex-basis:100%;text-align:center;color:#5c574d;font-size:14px;margin:4px 0 0">The mark: ruled notebook lines, where the last line <i>steps up</i>, with a highlighter stroke behind the step.</p>
+    </div>
+  </div>
+
+  <!-- ── Principles ────────────────────────────────────── -->
+  <section>
+    <div class="eyebrow">01 · Principles</div>
+    <h2>How it should feel</h2>
+    <p class="lead">Four rules every screen is checked against.</p>
+    <div class="grid principles">
+      <div class="sheet principle"><span class="n">01</span><h3>Paper, not dashboard</h3><p>Content sits on ruled lines and hairlines, not inside stacks of boxes. Cards only where something is genuinely a separate object.</p></div>
+      <div class="sheet principle"><span class="n">02</span><h3>Numbers are the hero</h3><p>Loads and reps are set in a mono typeface, large and aligned. Everything else steps back.</p></div>
+      <div class="sheet principle"><span class="n">03</span><h3>Every colour has one job</h3><p>Black ink = the plan and actions. Blue ink = what you did. Highlighter = progress. Pencil amber = check this. Red = errors.</p></div>
+      <div class="sheet principle"><span class="n">04</span><h3>Say less</h3><p>Write like a margin note: short, plain, specific. Explanations live behind "Why?", never on the page by default.</p></div>
+    </div>
+  </section>
+
+  <!-- ── Palette ───────────────────────────────────────── -->
+  <section>
+    <div class="eyebrow">02 · Colour</div>
+    <h2>Five inks on warm paper</h2>
+    <p class="lead">Light "Paper" is the default; "Night" is the same system for dark mode. Every text colour meets WCAG AA (4.5:1) on paper.</p>
+    <div class="grid palette">
+      <div class="swatch"><div class="chip" style="background:#f6f2ea;border-bottom:1px solid #e0d8c8">#F6F2EA</div><div class="meta"><b>Paper</b><span>Background. Warm, not yellow. Paper-2 #EFE9DD for insets, Rule #E0D8C8 for lines.</span></div></div>
+      <div class="swatch"><div class="chip" style="background:#1c1b18;color:#f6f2ea">#1C1B18</div><div class="meta"><b>Ink</b><span>Text, the printed plan, primary buttons, active tab. Ink-2 #5C574D and Ink-3 #716B62 for secondary text.</span></div></div>
+      <div class="swatch"><div class="chip" style="background:#24479a;color:#f6f2ea">#24479A</div><div class="meta"><b>Blue ink</b><span>Your records: values you logged, ticks on the week strip, edited fields. "Your handwriting."</span></div></div>
+      <div class="swatch"><div class="chip" style="background:#e6f06a">#E6F06A</div><div class="meta"><b>Highlighter</b><span>Progress only: new bests, improvements, the active tab. Always <i>behind</i> ink text, never as text colour.</span></div></div>
+      <div class="swatch"><div class="chip" style="background:#94600f;color:#f6f2ea">#94600F</div><div class="meta"><b>Pencil amber</b><span>"Check this": uncertain values, possible plateau, questions. Never decoration.</span></div></div>
+      <div class="swatch"><div class="chip" style="background:#b0302a;color:#f6f2ea">#B0302A</div><div class="meta"><b>Margin red</b><span>Errors, destructive actions, and the faint margin line on note pages.</span></div></div>
+      <div class="swatch"><div class="chip" style="background:#161513;color:#efeae0">#161513</div><div class="meta"><b>Night paper</b><span>Dark mode: warm charcoal, text #EFEAE0, blue ink becomes #9DB4F0.</span></div></div>
+      <div class="swatch"><div class="chip" style="background:repeating-linear-gradient(#f6f2ea 0 27px,#e0d8c8 27px 28px);border-left:3px solid rgba(176,48,42,.45)">Ruled</div><div class="meta"><b>Texture</b><span>Ruled lines and a margin, on note pages only. No paper-grain images, no skeuomorphism.</span></div></div>
+    </div>
+    <table class="roles">
+      <tr><th>Meaning</th><th>Today (V0.4)</th><th>Ink &amp; Paper</th></tr>
+      <tr><td>Main action</td><td>Teal fill</td><td>Solid ink button</td></tr>
+      <tr><td>Progress / improving</td><td>Teal pill (same as buttons)</td><td><span class="hl">Highlighter</span> behind the number</td></tr>
+      <tr><td>What you did</td><td>Grey 12 px "Last…" line</td><td><span style="color:#24479a;font-family:var(--mono)">Blue ink, mono, 14 px</span></td></tr>
+      <tr><td>Needs a check</td><td>Amber, also used for headings</td><td>Pencil amber, only for checks</td></tr>
+      <tr><td>Day headings</td><td>Amber small caps</td><td><i style="font-family:var(--serif)">Serif italic, ink</i></td></tr>
+    </table>
+  </section>
+
+  <!-- ── Type ──────────────────────────────────────────── -->
+  <section>
+    <div class="eyebrow">03 · Typography</div>
+    <h2>Three voices</h2>
+    <p class="lead">A serif for titles (the notebook), the system font for reading (native and fast), and a mono for every number (the record). In the app, fonts are bundled so they work offline.</p>
+    <div class="grid type">
+      <div class="sheet spec"><div class="eyebrow">Titles · Fraunces</div><div class="big" style="font-family:var(--serif);font-weight:600">Upper <i style="font-weight:400">Body</i></div><p>Screen titles, day headings (italic), the wordmark, and coach summaries. Soft, bookish, confident.</p></div>
+      <div class="sheet spec"><div class="eyebrow">Reading · System (SF Pro / Roboto)</div><div class="big" style="font-weight:600">Lat pulldown</div><p>Exercise names, labels, buttons, body copy. Feels native on iPhone and Android, with no download.</p></div>
+      <div class="sheet spec"><div class="eyebrow">Numbers · IBM Plex Mono</div><div class="big" style="font-family:var(--mono);font-weight:500;font-size:52px">30 × 9,8,8</div><p>Every load, rep, date and stat. Digits line up in columns, and "the record" always looks like data.</p></div>
+    </div>
+    <div class="sheet scale">
+      <div><code>Display 36 / serif 600</code><span style="font-family:var(--serif);font-size:36px;font-weight:600">This week</span></div>
+      <div><code>Heading 22 / serif it.</code><span style="font-family:var(--serif);font-size:22px;font-style:italic">Upper Body A — Monday</span></div>
+      <div><code>Body 16 / sans 600</code><span style="font-size:16px;font-weight:600">Smith machine bench press</span></div>
+      <div><code>Figure 15 / mono</code><span style="font-family:var(--mono);font-size:15px">3 × 6–10 · 30 kg/side</span></div>
+      <div><code>Record 14 / mono blue</code><span style="font-family:var(--mono);font-size:14px;color:#24479a;font-weight:500">27.5 × 9, 8, 8</span></div>
+      <div><code>Meta 13 / sans ink-3</code><span style="font-size:13px;color:#716b62">since 23 Oct</span></div>
+      <div><code>Label 12 / mono caps</code><span style="font:500 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:#716b62">Personal bests</span></div>
+    </div>
+  </section>
+
+  <!-- ── Components ────────────────────────────────────── -->
+  <section>
+    <div class="eyebrow">04 · Components</div>
+    <h2>One way to do each thing</h2>
+    <p class="lead">Three button types, one selected state, and statuses written into the text rather than coloured pills.</p>
+    <div class="grid comps">
+      <div class="sheet">
+        <div class="eyebrow">Buttons</div>
+        <div class="row"><button class="btn">Confirm week</button><button class="btn sec">Review changes</button><button class="btn txt">Discard draft</button><button class="btn danger">Erase all data</button></div>
+        <div class="eyebrow">Selected state (everywhere)</div>
+        <div class="row"><span class="seg"><span class="on">Done</span><span>Partly</span><span>Skipped</span></span><span class="pill on">3 days</span><span class="pill">4 days</span></div>
+        <div class="eyebrow">Editing a value</div>
+        <div class="row" style="display:block"><div style="font-weight:600;margin-bottom:4px">Smith machine bench press</div><input class="field" value="27.5 kg/side × 9, 8, 8" aria-label="Value"><div style="font:12px var(--mono);color:#716b62;margin-top:6px">was 30 × 7, 7, 6</div></div>
+      </div>
+      <div class="sheet">
+        <div class="eyebrow">Status, written in</div>
+        <div style="margin:14px 0 22px;display:grid;gap:12px;font-size:15px">
+          <div>Hip thrust · <span class="status up hl">+5 kg</span></div>
+          <div>Leg extension · <span class="status plat">possible plateau</span></div>
+          <div>Calf raise · <span class="status flat">holding steady</span></div>
+          <div>Shoulder press · <span class="status down">lower than usual</span></div>
+        </div>
+        <div class="eyebrow">A question (pencil amber)</div>
+        <div class="q" style="margin-top:12px"><b>"30 kg" — total, or per side?</b><div class="row" style="margin:10px 0 0"><span class="pill">Total</span><span class="pill">Per side</span><span class="pill">Per dumbbell</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Screens ───────────────────────────────────────── -->
+  <section>
+    <div class="eyebrow">05 · In the app</div>
+    <h2>Key screens</h2>
+    <p class="lead">Sample data. These are layout and style mock-ups, not the running app.</p>
+    <div class="phones">
+
+      <!-- Plan -->
+      <figure class="phone-wrap" style="margin:0">
+        <div class="phone">
+          <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+          <div class="scr">
+            <div class="top"><span class="date">Mon 9 Nov</span><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-2.7-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 2.7-1.1V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1.3z"/></svg></div>
+            <div class="sub" style="margin:10px 0 0">Today</div>
+            <h1>Upper <i>Body A</i></h1>
+            <div class="ex"><div class="name">Smith bench press</div><div class="plan">3 × 6–10 · 30 kg/side</div><div class="did"><small>last</small>30 × 7, 7, 6</div></div>
+            <div class="ex"><div class="name">Lat pulldown</div><div class="plan">3 × 8–12 · 55 kg</div><div class="did"><small>last</small>55 × 10, 10, 9</div></div>
+            <div class="ex" style="border:0"><div class="plus">+ 2 more</div></div>
+            <button class="btn" style="width:100%">Open workout</button>
+            <div class="h2">This week <a>Update</a></div>
+            <div class="weekstrip">
+              <div class="today">M<b class="plan"></b></div><div>T<b></b></div><div>W<b class="plan"></b></div><div>T<b></b></div><div>F<b class="plan"></b></div><div>S<b class="plan"></b></div><div>S<b></b></div>
+            </div>
+            <div style="font-size:13px;color:var(--ink-3)">4 planned · 0 done</div>
+          </div>
+          <div class="tabs">
+            <div class="on"><svg class="icon" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M9 10h6M9 14h6M9 18h4"/></svg><span>Plan</span></div>
+            <div><svg class="icon" viewBox="0 0 24 24"><path d="M4 20h16M7 16v-5M12 16V6M17 16v-8"/></svg><span>Progress</span></div>
+            <div><svg class="icon" viewBox="0 0 24 24"><path d="M5 5h14v10H9l-4 4z"/></svg><span>Coach</span></div>
+          </div>
+        </div>
+        <figcaption>Plan — today is the hero; the week is a strip of ticks</figcaption>
+      </figure>
+
+      <!-- Note -->
+      <figure class="phone-wrap" style="margin:0">
+        <div class="phone">
+          <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+          <div class="scr">
+            <div class="top"><span class="back">‹ Plan</span><span style="font-size:22px;letter-spacing:2px">···</span></div>
+            <h1 style="font-size:32px">Upper / Lower</h1>
+            <div class="sub" style="font-size:13px;margin-bottom:6px">Saved · 4 days a week</div>
+            <div class="page"><div class="inner ruled">
+              <div class="day">Upper Body A <span>MON</span></div>
+              <div class="ex"><div class="name">Smith bench press</div><div class="plan">3 × 6–10 · 30 kg/side</div><div class="did"><small>2 Nov</small><span class="hl" style="color:#24479a">27.5 × 9, 8, 8</span></div></div>
+              <div class="ex"><div class="name">Lat pulldown</div><div class="plan">3 × 8–12 · 55 kg</div><div class="did"><small>2 Nov</small>55 × 10, 10, 9</div></div>
+              <div class="ex"><div class="name">Seated cable row</div><div class="plan">3 × 8–12 · 52.5 kg</div><div class="did"><small>2 Nov</small>52.5 × 10, 10, 9</div></div>
+              <div class="ex" style="border:0"><div class="name">Bench</div><div class="plan">3 × 8 · 30 kg</div>
+                <div class="q" style="margin-top:8px;padding:8px 12px"><b style="font-size:14px">Total, or per side?</b></div></div>
+              <div class="plus">+ Add exercise</div>
+              <div class="day">Lower Body A <span>WED</span></div>
+              <div class="ex"><div class="name">Smith squat</div><div class="plan">3 × 6–10 · 37.5 kg/side</div></div>
+            </div></div>
+          </div>
+          <div class="tabs">
+            <div class="on"><svg class="icon" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M9 10h6M9 14h6M9 18h4"/></svg><span>Plan</span></div>
+            <div><svg class="icon" viewBox="0 0 24 24"><path d="M4 20h16M7 16v-5M12 16V6M17 16v-8"/></svg><span>Progress</span></div>
+            <div><svg class="icon" viewBox="0 0 24 24"><path d="M5 5h14v10H9l-4 4z"/></svg><span>Coach</span></div>
+          </div>
+        </div>
+        <figcaption>Workout note — black is the plan, blue is what you did</figcaption>
+      </figure>
+
+      <!-- Progress -->
+      <figure class="phone-wrap" style="margin:0">
+        <div class="phone">
+          <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+          <div class="scr">
+            <div class="top"><span class="date">Last 6 weeks</span></div>
+            <h1>Progress</h1>
+            <div class="bigstat"><div class="n"><span class="hl">+5 kg</span></div><p>Hip thrust, since 23 Oct. Your biggest gain this month.</p></div>
+            <div class="prow"><div><div class="name">Hip thrust</div><small>90 × 10</small></div><svg class="spark" viewBox="0 0 70 24"><path d="M2 20 L14 18 L26 18 L38 12 L50 10 L68 4"/></svg><div class="st"><span class="status hl">improving</span></div></div>
+            <div class="prow"><div><div class="name">Leg extension</div><small>40 × 12</small></div><svg class="spark" viewBox="0 0 70 24"><path d="M2 12 L14 12 L26 11 L38 12 L50 12 L68 12"/></svg><div class="st"><span class="status plat">plateau?</span></div></div>
+            <div class="prow"><div><div class="name">Leg press</div><small>150 × 10</small></div><svg class="spark" viewBox="0 0 70 24"><path d="M2 18 L14 16 L26 14 L38 14 L50 8 L68 6"/></svg><div class="st"><span class="status hl">improving</span></div></div>
+            <div class="prow"><div><div class="name">Calf raise</div><small>60 × 12</small></div><svg class="spark" viewBox="0 0 70 24"><path d="M2 12 L14 11 L26 12 L38 12 L50 11 L68 12"/></svg><div class="st"><span class="status flat">steady</span></div></div>
+            <div class="h2" style="margin-top:22px">Personal bests</div>
+            <div class="list-row"><span>Leg press</span><span style="font-family:var(--mono)">150 × 10</span></div>
+          </div>
+          <div class="tabs">
+            <div><svg class="icon" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M9 10h6M9 14h6M9 18h4"/></svg><span>Plan</span></div>
+            <div class="on"><svg class="icon" viewBox="0 0 24 24"><path d="M4 20h16M7 16v-5M12 16V6M17 16v-8"/></svg><span>Progress</span></div>
+            <div><svg class="icon" viewBox="0 0 24 24"><path d="M5 5h14v10H9l-4 4z"/></svg><span>Coach</span></div>
+          </div>
+        </div>
+        <figcaption>Progress — the gain is the headline, highlighted</figcaption>
+      </figure>
+
+      <!-- Coach, night -->
+      <figure class="phone-wrap night" style="margin:0">
+        <div class="phone" style="border-color:#000">
+          <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+          <div class="scr">
+            <div class="top"><span class="date">Week of 2 Nov</span></div>
+            <h1>Coach</h1>
+            <p style="font-family:var(--serif);font-size:21px;line-height:1.4;margin:14px 0 18px">A good week. Bench moved up a rep at the same load, and you made <span class="hl">4 of 4</span> sessions. Keep the plan as it is.</p>
+            <div class="note-callout"><div style="font:500 12px var(--mono);letter-spacing:.06em;color:var(--amber);text-transform:uppercase;margin-bottom:6px">1 of 2 · Suggestion</div><b>Leg extension has stalled at 40 × 12.</b><div style="color:var(--ink-2);margin-top:6px">Try 3 × 12–15 before adding weight.</div>
+              <div class="row" style="margin:14px 0 0"><button class="btn" style="padding:10px 16px;font-size:15px">Accept</button><button class="btn sec" style="padding:10px 16px;font-size:15px">Not now</button><button class="btn txt" style="font-size:15px;padding:10px 4px">Why?</button></div></div>
+            <div class="h2" style="margin-top:26px">Short on time?</div>
+            <div style="color:var(--ink-2);font-size:15px">Plan a lighter week in two taps.</div>
+          </div>
+          <div class="tabs">
+            <div><svg class="icon" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M9 10h6M9 14h6M9 18h4"/></svg><span>Plan</span></div>
+            <div><svg class="icon" viewBox="0 0 24 24"><path d="M4 20h16M7 16v-5M12 16V6M17 16v-8"/></svg><span>Progress</span></div>
+            <div class="on"><svg class="icon" viewBox="0 0 24 24"><path d="M5 5h14v10H9l-4 4z"/></svg><span>Coach</span></div>
+          </div>
+        </div>
+        <figcaption>Coach in Night mode — one paragraph, one suggestion at a time</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ── Voice ─────────────────────────────────────────── -->
+  <section>
+    <div class="eyebrow">06 · Voice</div>
+    <h2>Write like a margin note</h2>
+    <p class="lead">Short, specific, warm. Numbers over adjectives. No exclamation marks and no hype.</p>
+    <div class="grid voice">
+      <div class="sheet"><div class="eyebrow">Instead of</div>
+        <div class="say no">Useful feedback only when your records support it.</div>
+        <div class="say no">The week ends Sunday. Update it whenever suits you; only what you confirm is recorded.</div>
+        <div class="say no">+2 kg each, -1 rep since Thu, Oct 22, 2026.</div></div>
+      <div class="sheet"><div class="eyebrow">Write</div>
+        <div class="say">A good week. Keep the plan as it is.</div>
+        <div class="say">4 planned · 0 done. Update any time before Sunday.</div>
+        <div class="say"><span class="hl" style="font-family:var(--mono);font-size:17px">+2 kg</span> since 22 Oct</div></div>
+    </div>
+  </section>
+
+  <!-- ── Next ──────────────────────────────────────────── -->
+  <section>
+    <div class="eyebrow">07 · If approved</div>
+    <h2>How it would roll out</h2>
+    <div class="grid next" style="margin-top:22px">
+      <div class="sheet"><h3>1 · Foundations</h3><p>New tokens (paper / ink / blue / highlighter / amber / red), bundled Fraunces and Plex Mono fonts (offline), light and night themes, new icon and splash screens.</p></div>
+      <div class="sheet"><h3>2 · Components</h3><p>Three button types, one selected state, ruled lists in place of card stacks, written-in statuses, a single date format.</p></div>
+      <div class="sheet"><h3>3 · Screens</h3><p>Plan and the workout note first, then the weekly update, Progress and Coach, then Import, Library and Settings. Copy is trimmed screen by screen.</p></div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

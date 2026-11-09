@@ -8,10 +8,13 @@ import type {
   CustomExercise,
   Measurement,
   MealPlan,
+  NoteRevision,
   NutritionProfile,
   Profile,
   Programme,
+  TrainingWeek,
   WeekPlan,
+  WorkoutImportRecord,
   WorkoutSession,
 } from '../domain/types';
 
@@ -43,6 +46,9 @@ export type AdaptFitDB = Dexie & {
   bodyweights: EntityTable<BodyweightEntry, 'id'>;
   nutrition: EntityTable<NutritionProfile, 'id'>;
   mealPlans: EntityTable<MealPlan, 'localDate'>;
+  trainingWeeks: EntityTable<TrainingWeek, 'weekStart'>;
+  noteRevisions: EntityTable<NoteRevision, 'id'>;
+  imports: EntityTable<WorkoutImportRecord, 'id'>;
 };
 
 /** Version 1 (V0.1 initial release). */
@@ -82,10 +88,20 @@ export const SCHEMA_V4 = {
   mealPlans: 'localDate',
 };
 
-export const DB_VERSION = 4;
+/** Version 5 (V0.4): weekly training records, note revisions, note imports. */
+export const SCHEMA_V5 = {
+  ...SCHEMA_V4,
+  trainingWeeks: 'weekStart',
+  noteRevisions: 'id, programmeId, at',
+  imports: 'id, hash',
+};
+
+export const DB_VERSION = 5;
 
 /** Meta key holding the pre-V0.3 copy of every record the v4 upgrade changes. */
 export const PRE_V4_SNAPSHOT_KEY = 'snapshot:pre-v0.3';
+/** Meta key holding the pre-V0.4 copy of every record the v5 upgrade changes. */
+export const PRE_V5_SNAPSHOT_KEY = 'snapshot:pre-v0.4';
 
 export function createDb(name: string = DB_NAME): AdaptFitDB {
   const db = new Dexie(name) as AdaptFitDB;
@@ -141,6 +157,22 @@ export function createDb(name: string = DB_NAME): AdaptFitDB {
         else await tx.table('measurements').put({ ...m, bodyweightKg: null });
       }
     });
+  db.version(5)
+    .stores(SCHEMA_V5)
+    .upgrade(async (tx) => {
+      // V0.4 only adds fields; workouts, check-ins, bodyweight and nutrition are untouched.
+      // Legacy character and gamification settings stay in the profile (archived, no longer shown).
+      const profile = await tx.table('profile').get('me');
+      const programmes = await tx.table('programmes').toArray();
+      await tx.table('meta').put({ key: PRE_V5_SNAPSHOT_KEY, value: structuredClone({ copiedAt: new Date().toISOString(), profile: profile ?? null, programmes }) });
+      if (profile) {
+        // Someone who already logs set by set keeps seeing that option up front.
+        const liveLogged = (await tx.table('sessions').filter((s: WorkoutSession) => s.state === 'completed' && s.durationSource === 'timer').count()) > 0;
+        const migrated = migrateProfile(profile);
+        await tx.table('profile').put({ ...migrated, loggingMode: (profile as Partial<Profile>).loggingMode ?? (liveLogged ? 'live' : 'weekly') });
+      }
+      for (const p of programmes) await tx.table('programmes').put(migrateProgramme(p));
+    });
   return db;
 }
 
@@ -158,5 +190,5 @@ export function setDb(db: AdaptFitDB | null): void {
 
 /** Tables that hold personal records (everything is personal; all are cleared on reset). */
 export function personalTables(db: AdaptFitDB) {
-  return [db.profile, db.checkIns, db.sessions, db.meta, db.programmes, db.customExercises, db.recommendations, db.weekPlans, db.measurements, db.legacySessions, db.bodyweights, db.nutrition, db.mealPlans];
+  return [db.profile, db.checkIns, db.sessions, db.meta, db.programmes, db.customExercises, db.recommendations, db.weekPlans, db.measurements, db.legacySessions, db.bodyweights, db.nutrition, db.mealPlans, db.trainingWeeks, db.noteRevisions, db.imports];
 }

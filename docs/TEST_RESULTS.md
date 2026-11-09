@@ -1,5 +1,87 @@
 # AdaptFit — Test results
 
+## V0.5 update: import corpus, Settings redesign, admin, free hosting (2026-11-09, later)
+
+Run after the last code change (Windows 11, Node 24.16.0, Chromium via Playwright 1.65.0).
+
+| Command | Result |
+|---|---|
+| `npm run check` (lint → typecheck → tests → build) | ✅ |
+| `npx vitest run` | ✅ **426 passed** (22 files). New: 35-note import corpus with the "no line lost / nothing invented / every guess visible" invariants, the owner's own note in all three import modes, 35 brand tests (colours only from tokens, both themes complete, WCAG AA contrast), 6 admin tests |
+| `npx playwright test --repeat-each=2` | ✅ **90/90** (45 tests × 2), then ✅ 45/45 after the last edit |
+| Design tests (`tests/e2e/design.spec.ts`) | ✅ fonts per role, ink primary buttons, no old palette, highlighter only on progress, Settings rows aligned (≤2 px) at 5 widths × 2 themes, all targets ≥ 44 px, inputs ≥ 16 px, axe 0 violations with every Settings group open (Paper and Night) |
+| Sub-path + offline (`tests/e2e/subpath.spec.ts`) | ✅ app served only under `/adaptfit/`: assets, manifest and service worker resolve there; after one visit it reopens offline |
+| Admin (`tests/e2e/admin.spec.ts`) | ✅ renders with seeded data; no request to any other origin |
+| `npm audit --omit=dev` | ✅ 0 |
+
+**Not covered:** a real iPhone/Android, Safari/WebKit, a real GitHub Pages deployment (the workflow was added but not run), human usability timing.
+
+---
+
+## V0.5 "Ink & Paper" (2026-11-09)
+
+Windows 11 Pro, Node 24.16.0, Chromium (Playwright 1.65.0). Run after the last code change.
+
+| Command | Result |
+|---|---|
+| `npm run check` (lint → typecheck → tests → build) | ✅ |
+| `npm test` | ✅ **224 passed** (18 files; +5 in `v5-brand.test.ts`: date format, theme default/storage/browser-bar colour) |
+| `npx playwright test --repeat-each=2` | ✅ **62/62** (31 tests × 2) |
+| axe WCAG 2.1 AA, Paper (11 screens + note, editor, weekly review, import preview) | ✅ 0 violations |
+| axe WCAG 2.1 AA, Night (7 screens + note) — new test | ✅ 0 violations |
+| `npm audit --omit=dev` | ✅ 0 (fonts add no runtime code) |
+| `npm audit` (all) | 15 (2 low, 13 moderate), dev tooling only — unchanged |
+
+**Defects found by the tests and fixed:** the theme bootstrap was first written as an inline script, which the app's Content Security Policy blocks (it now loads `/theme-init.js`); segmented controls were 42 px tall (now 44 px).
+
+**Screenshots:** `docs/screenshots/v0.5/` — 8 screens × 5 widths in Paper, plus the 8 screens at 390 px in Night.
+
+**Not covered:** physical devices, Safari/WebKit (font rendering and `color-mix()` need Safari 16.2+), human review of the new look on a phone.
+
+---
+
+## V0.4 (2026-11-08)
+
+Windows 11 Pro, Node 24.16.0, Chromium (Playwright 1.65.0). All commands were run on this date, after the last code change.
+
+| Command | Result |
+|---|---|
+| Baseline before changes (lint, typecheck, Vitest) | ✅ clean, 182/182 (V0.3) |
+| `npm run check` (lint → typecheck → tests → build) | ✅ all steps passed |
+| `npm test` | ✅ **219 passed** (17 files) |
+| `npm run test:coverage` | Statements 62.4%, Branches 52.7%, Functions 51.7%, Lines 65.0% (unit + integration; E2E not instrumented) |
+| `npx playwright test --repeat-each=2` | ✅ **58/58** (29 tests × 2: platform 11, V0.4 journeys 13, visual 5) |
+| axe WCAG 2.1 AA (11 screens + note editor + weekly draft/review + import preview) | ✅ 0 violations |
+| `npm audit --omit=dev` | ✅ 0 vulnerabilities |
+| `npm audit` (all) | 15 (2 low, 13 moderate), dev-only build tooling — unchanged from V0.3 |
+
+**Usability targets (automated, Chromium; machine time, not human time):**
+
+| Target | Measured |
+|---|---|
+| A — read the workout | 1 tap from Plan, 1 screen |
+| B — change one value | 2 taps (line, Done) + typing, 1 screen |
+| C — 3-session week, 2 changed values | 6 taps + typing two values, 1 screen (≈ 1 s automated). A human time under 60 s is **not yet measured**. |
+| D — import a Notes workout | paste, 3 one-tap choices for ambiguous names, save |
+
+**Tests removed or changed** (no valid check dropped):
+- Removed with the RPG layer: `tests/unit/rpg.test.ts`; character tests T51–T56 and T57 (duplicate XP) in `v3-coach-character.test.tsx` (replaced by legacy-character-data checks). Code is on `legacy/v0.3-rpg`.
+- `tests/e2e/training.spec.ts`, `insights.spec.ts`, `v3.spec.ts` targeted the removed Train/Journey screens; their live-logging, plateau, guided-programme, Fuel and regression checks now run in `v4.spec.ts`, `platform.spec.ts` and `v2-flows.test.tsx`.
+- `v2-flows.test.tsx` now drives the same flows through the V0.4 UI; T41 "XP once" became "a live log is recorded exactly once"; T48 uses the new importer.
+- Version expectations updated: database v5, backup versions "1, 2, 3 and 4".
+
+**Defects found by the new tests and fixed:**
+- A blank line before free text didn't end the exercise block, so day notes were attached to the last exercise (T04).
+- Choosing a library variation whose load is always total (e.g. barbell bench) didn't clear the "total or per side?" question (import unit test).
+- `scrollIntoView` was called unguarded (crashed in jsdom; would also on very old browsers).
+- Note lines had accessible names that didn't include their visible "Last…" text (axe).
+- Status buttons were truncated at 390 px ("Partly do…"); now a 2×2 grid on narrow phones.
+- Weekly sheet: 9,8,8 → 9,9,8 at the same load was reported as "Stable"; comparison now counts reps across sets.
+
+**Not covered:** physical iPhone/Android devices, installed standalone mode, real on-screen keyboards, Safari/WebKit and Firefox engines, real HTTPS hosting, real (non-synthetic) user data, human timing of Target C.
+
+---
+
 ## V0.3 (2026-11-06)
 
 Windows 11 Pro, Node 24.16.0, Chromium (Playwright 1.65.0). All commands were run on this date.

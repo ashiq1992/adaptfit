@@ -1,7 +1,5 @@
-import { render } from '@testing-library/react';
 import Dexie from 'dexie';
 import { describe, expect, it } from 'vitest';
-import { CHARACTER_DEFS, isValidDef, resolveStyle } from '../../src/content/characters';
 import { createDb, PRE_V4_SNAPSHOT_KEY, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, setDb } from '../../src/data/db';
 import * as repo from '../../src/data/repo';
 import { profileSchema } from '../../src/data/schemas';
@@ -11,8 +9,6 @@ import { recommendProgrammes } from '../../src/domain/guided';
 import { applyNutritionChange, integrationFindings, integrationRecommendation } from '../../src/domain/integration';
 import { assessExercise } from '../../src/domain/plateau';
 import { proposeWeek, weekSchedule } from '../../src/domain/schedule';
-import { computeRpg, type RpgInput } from '../../src/domain/rpg';
-import { Adventurer } from '../../src/ui/Adventurer';
 import { bench, completedSession, fourDayProgramme, improvingBench, makeProfile, newIdFn, nutritionProfile, stableBench, T0, TODAY, weeklyBodyweights } from '../fixtures/factories';
 
 const BENCH = 'smith-bench-press|per-side';
@@ -111,27 +107,11 @@ describe('V0.3 coaching and scheduling', () => {
   });
 });
 
-describe('V0.3 characters', () => {
-  const rpgInput = (): RpgInput => ({
-    sessions: [completedSession({ id: 'a', date: '2026-03-02', exercises: [bench([{ load: 30, reps: 8 }])] }), completedSession({ id: 'b', date: TODAY, exercises: [bench([{ load: 30, reps: 9 }])] })],
-    checkIns: [],
-    recommendations: [],
-    weekPlans: [],
-    programme: null,
-    reviewedWeeks: [],
-    today: TODAY,
-  });
+describe('Legacy character data (V0.4: RPG removed from the app, data archived)', () => {
+  const sessionsInput = () => [completedSession({ id: 'a', date: '2026-03-02', exercises: [bench([{ load: 30, reps: 8 }])] }), completedSession({ id: 'b', date: TODAY, exercises: [bench([{ load: 30, reps: 9 }])] })];
 
-  it('T51 four characters are available, all valid and placeholder-marked', () => {
-    expect(CHARACTER_DEFS.map((d) => d.id)).toEqual(['warrior', 'ranger', 'scholar', 'engineer']);
-    for (const d of CHARACTER_DEFS) {
-      expect(isValidDef(d)).toBe(true);
-      expect(d.placeholder).toBe(true);
-    }
-  });
-
-  it('T52 character selection persists', async () => {
-    setDb(createDb(`v3-t52-${Math.random()}`));
+  it('the V0.3 character selection is still accepted and kept in the profile', async () => {
+    setDb(createDb(`v4-char-${Math.random()}`));
     const p = makeProfile({ character: { style: 'scholar', palette: null, hiddenLayers: ['cape'], updatedAt: T0.toISOString() } });
     expect(profileSchema.safeParse(p).success).toBe(true);
     await repo.saveProfile(p);
@@ -139,41 +119,13 @@ describe('V0.3 characters', () => {
     setDb(null);
   });
 
-  it('T53 T54 T56 switching characters preserves XP and achievements and never changes fitness logic', () => {
-    const before = computeRpg(rpgInput());
-    // Character choice isn't an input to progression: identical records give identical results.
-    const after = computeRpg(rpgInput());
-    expect(after.level).toEqual(before.level);
-    expect(after.achievements).toEqual(before.achievements);
-    expect(after.stats).toEqual(before.stats);
-    // Programme recommendations don't depend on the character either.
+  it('programme recommendations never depend on legacy character data', () => {
     const a = { goal: 'hypertrophy', experience: 'intermediate', daysPerWeek: 3, sessionMinutes: 60, preferredWeekdays: [], equipment: 'full-gym', priorities: [], avoidExerciseIds: [] } as const;
     const ids = recommendProgrammes({ ...a, preferredWeekdays: [], priorities: [], avoidExerciseIds: [] }, newIdFn).map((r) => r.template.id);
     expect(ids).toEqual(recommendProgrammes({ ...a, preferredWeekdays: [], priorities: [], avoidExerciseIds: [] }, newIdFn).map((r) => r.template.id));
   });
 
-  it('T55 missing character assets fall back to the default sprite', () => {
-    expect(resolveStyle('dragon-knight')).toMatchObject({ fallback: true, def: { id: 'warrior' } });
-    expect(resolveStyle(undefined).fallback).toBe(true);
-    const broken = [{ ...CHARACTER_DEFS[1]!, gear: [{ x: 40, y: 3, c: 'x' }] }];
-    expect(resolveStyle('ranger', broken)).toMatchObject({ fallback: true });
-    const { container } = render(<Adventurer level={3} styleId="dragon-knight" />);
-    const svg = container.querySelector('svg')!;
-    expect(svg.getAttribute('data-fallback')).toBe('true');
-    expect(svg.getAttribute('data-style')).toBe('warrior');
-    expect(svg.querySelectorAll('rect').length).toBeGreaterThan(20);
-    const ok = render(<Adventurer level={3} styleId="engineer" />).container.querySelector('svg')!;
-    expect(ok.getAttribute('data-fallback')).toBeNull();
-    expect(ok.getAttribute('data-style')).toBe('engineer');
-  });
-
-  it('T57 duplicate XP is prevented', () => {
-    const input = rpgInput();
-    const dup = computeRpg({ ...input, sessions: [...input.sessions, ...input.sessions.map((s) => structuredClone(s))] });
-    expect(dup.level.totalXP).toBe(computeRpg(input).level.totalXP);
-  });
-
-  it('T58 existing records and achievements survive the v3 → v4 migration', async () => {
+  it('T57/T58 existing records survive the v3 → v5 migration (V0.2 → V0.4)', async () => {
     const name = `v3-t58-${Math.random()}`;
     // A V0.2 (database v3) database with V0.2-shaped records.
     const old = new Dexie(name);
@@ -181,7 +133,7 @@ describe('V0.3 characters', () => {
     old.version(2).stores(SCHEMA_V2);
     old.version(3).stores(SCHEMA_V3);
     await old.open();
-    const input = rpgInput();
+    const input = { sessions: sessionsInput() };
     const v2Profile = (({ character: _c, trainingPrefs: _t, ...rest }) => rest)(makeProfile());
     const v2Programme = { ...fourDayProgramme(), days: fourDayProgramme().days.map((d) => ({ ...d, exercises: d.exercises.map(({ plannedLoad: _p, ...e }) => e) })) };
     delete (v2Programme as Partial<typeof v2Programme>).templateId;
@@ -192,21 +144,20 @@ describe('V0.3 characters', () => {
       { id: 'm1', localDate: '2026-03-01', bodyweightKg: 80.4, waistCm: null, note: '', createdAt: T0.toISOString() },
       { id: 'm2', localDate: '2026-03-08', bodyweightKg: 80.1, waistCm: 82, note: 'am', createdAt: T0.toISOString() },
     ]);
-    const before = computeRpg(input);
     old.close();
 
     const db = createDb(name);
     setDb(db);
     await db.open();
-    expect(db.verno).toBe(4);
+    expect(db.verno).toBe(5); // v3 → v4 → v5 in one open
     const sessions = await db.sessions.toArray();
     expect(sessions).toEqual(input.sessions); // untouched
-    const after = computeRpg({ ...input, sessions });
-    expect(after.level).toEqual(before.level);
-    expect(after.achievements.filter((a) => a.earned).map((a) => a.id)).toEqual(before.achievements.filter((a) => a.earned).map((a) => a.id));
     const profile = await db.profile.get('me');
-    expect(profile).toMatchObject({ character: { style: 'warrior' }, trainingPrefs: { priorities: [] } });
-    expect((await db.programmes.toArray())[0]!.days[0]!.exercises.every((e) => e.plannedLoad === null)).toBe(true);
+    expect(profile).toMatchObject({ character: { style: 'warrior' }, trainingPrefs: { priorities: [] }, loggingMode: 'weekly', notifications: { weeklyReminder: true } });
+    const migrated = (await db.programmes.toArray())[0]!;
+    expect(migrated.days[0]!.exercises.every((e) => e.plannedLoad === null && e.uncertain.length === 0)).toBe(true);
+    expect(migrated.notes).toBe('');
+    expect(migrated.days.every((d) => d.notes === '')).toBe(true);
     expect((await db.bodyweights.orderBy('localDate').toArray()).map((b) => [b.localDate, b.value, b.unit])).toEqual([
       ['2026-03-01', 80.4, 'kg'],
       ['2026-03-08', 80.1, 'kg'],

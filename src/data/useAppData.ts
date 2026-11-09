@@ -1,7 +1,6 @@
-import { useMemo } from 'react';
 import { localDateOf } from '../domain/dates';
 import { comparableKey } from '../domain/loads';
-import { computeRpg, type RpgState } from '../domain/rpg';
+import { dedupeSessions } from '../domain/weekly';
 import type {
   BodyweightEntry,
   CheckIn,
@@ -12,7 +11,9 @@ import type {
   NutritionProfile,
   Profile,
   Programme,
+  TrainingWeek,
   WeekPlan,
+  WorkoutImportRecord,
   WorkoutSession,
 } from '../domain/types';
 import { clock } from '../ui/clock';
@@ -35,11 +36,14 @@ export interface AppData {
   bodyweights: BodyweightEntry[];
   nutrition: NutritionProfile | null;
   mealPlans: MealPlan[];
+  /** V0.4 weekly records, oldest first. */
+  trainingWeeks: TrainingWeek[];
+  imports: WorkoutImportRecord[];
 }
 
 async function loadAll(): Promise<AppData> {
   const db = getDb();
-  const [profile, programmes, sessions, checkIns, recommendations, weekPlans, measurements, customExercises, reviewed, bodyweights, nutrition, mealPlans] = await Promise.all([
+  const [profile, programmes, stored, checkIns, recommendations, weekPlans, measurements, customExercises, reviewed, bodyweights, nutrition, mealPlans, trainingWeeks, imports] = await Promise.all([
     db.profile.get('me'),
     db.programmes.toArray(),
     db.sessions.toArray(),
@@ -52,7 +56,11 @@ async function loadAll(): Promise<AppData> {
     db.bodyweights.toArray(),
     db.nutrition.get('me'),
     db.mealPlans.toArray(),
+    db.trainingWeeks.orderBy('weekStart').toArray(),
+    db.imports.toArray(),
   ]);
+  // A workout logged live and also entered in a weekly update counts once.
+  const sessions = dedupeSessions(stored);
   const completed = sessions
     .filter((s) => s.state === 'completed')
     .sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? '') || a.id.localeCompare(b.id));
@@ -72,13 +80,15 @@ async function loadAll(): Promise<AppData> {
     bodyweights: bodyweights.sort((a, b) => a.localDate.localeCompare(b.localDate) || a.createdAt.localeCompare(b.createdAt)),
     nutrition: nutrition ?? null,
     mealPlans,
+    trainingWeeks,
+    imports,
   };
 }
 
 /**
  * Every screen reads from this single live snapshot. Dexie re-runs the query
  * on any change (including from other tabs), so all derived numbers — trends,
- * PRs, XP, achievements — recalculate from the stored records.
+ * personal bests, reviews — recalculate from the stored records.
  */
 export function useAppData() {
   return useLive(loadAll, []);
@@ -87,21 +97,6 @@ export function useAppData() {
 export function useToday(profile: Profile | undefined): string {
   const now = useNow(30_000);
   return localDateOf(now, profile?.timezone);
-}
-
-export function useRpg(data: AppData | undefined, today: string): RpgState | null {
-  return useMemo(() => {
-    if (!data) return null;
-    return computeRpg({
-      sessions: data.sessions,
-      checkIns: data.checkIns,
-      recommendations: data.recommendations,
-      weekPlans: data.weekPlans,
-      programme: data.activeProgramme,
-      reviewedWeeks: data.reviewedWeeks,
-      today,
-    });
-  }, [data, today]);
 }
 
 export function priorityKeys(programme: Programme | null): Set<string> {

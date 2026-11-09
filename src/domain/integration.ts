@@ -101,7 +101,7 @@ export function integrationFindings(ctx: IntegrationContext): IntegrationFinding
       title: 'Busy week: keep it simple',
       trigger: overtime ? 'Frequent overtime and meals bought out' : 'Fewer sessions than planned and meals bought out',
       explanation:
-        'When time is short, a reduced training week (Coach → This Week) and convenient protein choices can keep progress going: extra chicken or egg at hawker stalls, fish soup, yong tau foo with tofu, unsweetened soy milk, or convenience-store eggs.',
+        'When time is short, a reduced training week (Coach → Short on time this week) and convenient protein choices can keep progress going: extra chicken or egg at hawker stalls, fish soup, yong tau foo with tofu, unsweetened soy milk, or convenience-store eggs.',
       supportingData: [overtime ? 'You noted frequent overtime.' : 'This week has fewer completed sessions than planned.', `You usually ${n?.habits.source === 'out' ? 'eat out' : 'mix cooking and eating out'}.`],
       missingData: [],
       questions: [],

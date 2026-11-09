@@ -74,10 +74,10 @@ export function BodyweightPanel({ range }: { range: Range }) {
             {[...data.bodyweights].reverse().map((e) => (
               <li key={e.id}>
                 <span className="small num">{shortDate(e.localDate)}</span>
-                <span className="small num grow" style={{ textAlign: 'right' }}>
+                <span className="small num grow text-right">
                   {e.value} {e.unit}
                   {e.unit !== unit ? <span className="muted"> ({displayValue(e, unit)} {unit})</span> : null}
-                  {e.note ? <span className="xs muted" style={{ display: 'block' }}>{e.note}</span> : null}
+                  {e.note ? <span className="xs muted block">{e.note}</span> : null}
                 </span>
                 <button type="button" className="btn btn-ghost btn-icon" aria-label={`Edit entry from ${e.localDate}`} onClick={() => setEditing(e)}>
                   <IconEdit size={18} />
@@ -154,7 +154,7 @@ function EntryForm({ editing, onDone }: { editing: BodyweightEntry | null; onDon
           <label className="field-label" htmlFor={ids.v}>
             Bodyweight
           </label>
-          <div className="row" style={{ gap: 8 }}>
+          <div className="row">
             <input id={ids.v} className="input input-num" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} />
             <label className="visually-hidden" htmlFor={ids.u}>
               Unit
@@ -165,7 +165,7 @@ function EntryForm({ editing, onDone }: { editing: BodyweightEntry | null; onDon
             </select>
           </div>
         </div>
-        <div className="field" style={{ gridColumn: '1 / -1' }}>
+        <div className="field span-all">
           <label className="field-label" htmlFor={ids.n}>
             Note (optional)
           </label>
@@ -212,7 +212,7 @@ function WaistMeasurements() {
   return (
     <details className="card disclosure">
       <summary className="strong">Waist measurements (optional)</summary>
-      <div className="form-grid" style={{ marginTop: 12 }}>
+      <div className="form-grid mt-3">
         <div className="field">
           <label className="field-label" htmlFor={ids.d}>
             Date

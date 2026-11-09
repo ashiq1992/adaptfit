@@ -98,6 +98,10 @@ export interface Profile {
   character: CharacterSelection;
   /** V0.3: answers from the guided programme questionnaire, reused next time. */
   trainingPrefs: TrainingPrefs;
+  /** V0.4: weekly updates by default; 'live' shows set-by-set logging up front. */
+  loggingMode: LoggingMode;
+  /** V0.4: in-app prompts only (no push notifications). */
+  notifications: NotificationPrefs;
   createdAt: string;
   updatedAt: string;
 }
@@ -288,6 +292,11 @@ export interface ProgrammeExercise {
    * (e.g. 30 kg per side). Optional. Actual loads are recorded per set.
    */
   plannedLoad: PlannedLoad | null;
+  /**
+   * V0.4: fields the note parser could not confirm (e.g. 'loadType' for
+   * "Bench 30 kg"). Shown as needing attention; never silently resolved.
+   */
+  uncertain: NoteField[];
 }
 
 export interface PlannedLoad {
@@ -299,6 +308,8 @@ export interface ProgrammeDay {
   id: string;
   name: string;
   exercises: ProgrammeExercise[];
+  /** V0.4: free text under the day that isn't an exercise. Always preserved verbatim. */
+  notes: string;
 }
 
 export interface Programme {
@@ -313,6 +324,8 @@ export interface Programme {
   source: 'created' | 'imported' | 'starter' | 'restored' | 'template';
   /** V0.3: the AdaptFit template this programme was generated from, if any. */
   templateId: string | null;
+  /** V0.4: free text at the top of the workout note. */
+  notes: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -369,12 +382,13 @@ export interface WorkoutSession {
   id: string;
   schemaVersion: 3;
   state: SessionState;
-  source: 'programme' | 'quick' | 'import' | 'manual' | 'legacy';
+  /** 'weekly' = generated from a confirmed weekly update (V0.4). */
+  source: 'programme' | 'quick' | 'import' | 'manual' | 'legacy' | 'weekly';
   name: string;
   programmeId: string | null;
   dayId: string | null;
   /** How the plan for this session was arrived at. */
-  planKind: 'programme-day' | 'shortened' | 'adjusted-week' | 'quick' | 'import' | 'legacy';
+  planKind: 'programme-day' | 'shortened' | 'adjusted-week' | 'quick' | 'import' | 'legacy' | 'weekly';
   emphasis: Emphasis | null;
   checkIn: CheckIn | null;
   exercises: SessionExercise[];
@@ -623,4 +637,125 @@ export interface MealPlan {
   localDate: string;
   items: MealPlanItem[];
   updatedAt: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// V0.4: notes-first workouts, weekly updates, imports
+// ─────────────────────────────────────────────────────────────────────────
+
+export const LOGGING_MODES = ['weekly', 'live'] as const;
+export type LoggingMode = (typeof LOGGING_MODES)[number];
+
+export interface NotificationPrefs {
+  /** Show the "Update this week" reminder on Plan near the end of a week. */
+  weeklyReminder: boolean;
+  /** Show a dot on Coach when there is a new finding. */
+  coachFindings: boolean;
+}
+
+export const DEFAULT_NOTIFICATIONS: NotificationPrefs = { weeklyReminder: true, coachFindings: true };
+
+/** Structured fields a note line can leave unconfirmed. */
+export const NOTE_FIELDS = ['exercise', 'loadType', 'unit', 'sets', 'reps'] as const;
+export type NoteField = (typeof NOTE_FIELDS)[number];
+
+/** One recorded set in a weekly update. */
+export interface PerformanceSet {
+  load: number | null;
+  reps: number | null;
+  durationSec: number | null;
+}
+
+/**
+ * Where a weekly value came from. Copied or planned values are only a starting
+ * point: they count as performance only after the session is confirmed.
+ */
+export type PerformanceSource = 'copied' | 'edited' | 'planned' | 'imported' | 'live' | 'blank';
+
+/** One exercise's performance within a weekly session record. */
+export interface ExercisePerformance {
+  programmeExerciseId: string | null;
+  exerciseId: string;
+  name: string;
+  loadType: LoadType;
+  unit: WeightUnit;
+  /** What the user sees and edits, e.g. "30 kg/side × 9, 8, 8". */
+  text: string;
+  /** Parsed from `text`; empty when nothing usable was entered. */
+  sets: PerformanceSet[];
+  /** 'skipped' rows are never recorded; 'done' rows are recorded once the session is confirmed. */
+  status: 'done' | 'skipped';
+  source: PerformanceSource;
+  /** The reference this value was copied from, kept for change highlighting. */
+  previous: { weekStart: string | null; text: string; sets: PerformanceSet[] } | null;
+  uncertain: NoteField[];
+}
+
+export const WEEKLY_SESSION_STATUSES = ['completed', 'partial', 'skipped', 'not-recorded'] as const;
+export type WeeklySessionStatus = (typeof WEEKLY_SESSION_STATUSES)[number];
+
+export interface WeeklySessionRecord {
+  /** Stable within the week (day ID, or a generated ID for an extra session). */
+  id: string;
+  dayId: string | null;
+  name: string;
+  /** Date the session was done; required to count as completed. */
+  localDate: string | null;
+  status: WeeklySessionStatus;
+  /** The workout record that represents this session (generated on confirm, or a live-logged one). */
+  sessionId: string | null;
+  /** True when this session was logged set by set; its values come from that log. */
+  live: boolean;
+  exercises: ExercisePerformance[];
+  note: string;
+}
+
+/** A training week: a draft until confirmed, then a historical record. */
+export interface TrainingWeek {
+  /** Monday, YYYY-MM-DD. One record per week. */
+  weekStart: string;
+  programmeId: string | null;
+  status: 'draft' | 'confirmed';
+  sessions: WeeklySessionRecord[];
+  /** Week the values were copied from, if any. */
+  copiedFrom: string | null;
+  createdAt: string;
+  updatedAt: string;
+  confirmedAt: string | null;
+  /** Increments on every confirmation; earlier confirmed versions are kept in `history`. */
+  revision: number;
+  reviewDismissed: boolean;
+  history: { revision: number; confirmedAt: string; sessions: WeeklySessionRecord[] }[];
+}
+
+/** Snapshot of a workout note before an edit, used for undo and recovery. */
+export interface NoteRevision {
+  id: string;
+  programmeId: string;
+  at: string;
+  reason: string;
+  snapshot: Programme;
+}
+
+/** Performance from a pasted note the user marked as undated. Never used for trends. */
+export interface UndatedPerformance {
+  exerciseId: string;
+  name: string;
+  loadType: LoadType;
+  unit: WeightUnit;
+  sets: PerformanceSet[];
+}
+
+export interface WorkoutImportRecord {
+  id: string;
+  /** Hash of the normalised pasted text, for duplicate detection. */
+  hash: string;
+  mode: 'template' | 'history' | 'week';
+  createdAt: string;
+  /** Date given for a historical import; null when imported as undated. */
+  localDate: string | null;
+  text: string;
+  /** IDs of records created (programme, sessions, or week). */
+  resultIds: string[];
+  undated: UndatedPerformance[];
 }

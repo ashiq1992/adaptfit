@@ -120,7 +120,7 @@ export function generateDays(template: ProgrammeTemplate, answers: GuidedAnswers
       alternatives[pe.id] = options.slice(1);
       return [pe];
     });
-    return { day: { id: newId(), name: td.name, exercises }, alternatives, droppedSlots };
+    return { day: { id: newId(), name: td.name, exercises, notes: '' }, alternatives, droppedSlots };
   });
 }
 

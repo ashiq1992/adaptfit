@@ -17,7 +17,10 @@ import {
   EXPERIENCE_LEVELS,
   GOALS,
   LOAD_TYPES,
+  LOGGING_MODES,
+  NOTE_FIELDS,
   SAFETY_CONCERNS,
+  WEEKLY_SESSION_STATUSES,
   SORENESS_LEVELS,
   TRAINING_GOALS,
   TRAINING_WINDOWS,
@@ -186,7 +189,13 @@ export const trainingPrefsSchema = z.object({
   daysPerWeek: z.number().int().min(1).max(7).nullable(),
 });
 
-export const profileSchema = profileSchemaV2.extend({ character: characterSchema, trainingPrefs: trainingPrefsSchema });
+export const profileSchemaV3 = profileSchemaV2.extend({ character: characterSchema, trainingPrefs: trainingPrefsSchema });
+
+// ── V0.4 (backup format 4) ─────────────────────────────────────────
+
+export const notificationPrefsSchema = z.object({ weeklyReminder: z.boolean(), coachFindings: z.boolean() });
+
+export const profileSchema = profileSchemaV3.extend({ loggingMode: z.enum(LOGGING_MODES), notifications: notificationPrefsSchema });
 
 
 export const checkInSchema = legacyCheckInSchema.extend({
@@ -233,11 +242,11 @@ export const sessionSchema = z.object({
   id,
   schemaVersion: z.literal(3),
   state: z.enum(['active', 'completed', 'discarded']),
-  source: z.enum(['programme', 'quick', 'import', 'manual', 'legacy']),
+  source: z.enum(['programme', 'quick', 'import', 'manual', 'legacy', 'weekly']),
   name: shortText,
   programmeId: id.nullable(),
   dayId: id.nullable(),
-  planKind: z.enum(['programme-day', 'shortened', 'adjusted-week', 'quick', 'import', 'legacy']),
+  planKind: z.enum(['programme-day', 'shortened', 'adjusted-week', 'quick', 'import', 'legacy', 'weekly']),
   emphasis: z.enum(['upper', 'lower', 'full', 'conditioning']).nullable(),
   checkIn: checkInSchema.nullable(),
   exercises: z.array(sessionExerciseSchema).max(40),
@@ -287,12 +296,83 @@ export const programmeSchemaV2 = z.object({
 
 export const plannedLoadSchema = z.object({ value: z.number().finite().min(0).max(MAX_LOAD), unit: z.enum(WEIGHT_UNITS) });
 
-export const programmeExerciseSchema = programmeExerciseSchemaV2.extend({ plannedLoad: plannedLoadSchema.nullable() });
+export const programmeExerciseSchemaV3 = programmeExerciseSchemaV2.extend({ plannedLoad: plannedLoadSchema.nullable() });
 
-export const programmeSchema = programmeSchemaV2.extend({
-  days: z.array(z.object({ id, name: shortText, exercises: z.array(programmeExerciseSchema).max(30) })).max(14),
+export const programmeSchemaV3 = programmeSchemaV2.extend({
+  days: z.array(z.object({ id, name: shortText, exercises: z.array(programmeExerciseSchemaV3).max(30) })).max(14),
   source: z.enum(['created', 'imported', 'starter', 'restored', 'template']),
   templateId: id.nullable(),
+});
+
+const noteFields = z.array(z.enum(NOTE_FIELDS)).max(NOTE_FIELDS.length);
+const noteText = z.string().max(5000);
+
+export const programmeExerciseSchema = programmeExerciseSchemaV3.extend({ notes: noteText, uncertain: noteFields });
+
+export const programmeSchema = programmeSchemaV3.extend({
+  days: z.array(z.object({ id, name: shortText, exercises: z.array(programmeExerciseSchema).max(40), notes: noteText })).max(14),
+  notes: noteText,
+});
+
+const performanceSet = z.object({
+  load: z.number().finite().min(0).max(MAX_LOAD).nullable(),
+  reps: z.number().int().min(1).max(MAX_REPS).nullable(),
+  durationSec: z.number().int().min(1).max(MAX_DURATION_SEC).nullable(),
+});
+
+export const exercisePerformanceSchema = z.object({
+  programmeExerciseId: id.nullable(),
+  exerciseId: id,
+  name: shortText,
+  loadType,
+  unit: z.enum(WEIGHT_UNITS),
+  text: z.string().max(300),
+  sets: z.array(performanceSet).max(30),
+  status: z.enum(['done', 'skipped']),
+  source: z.enum(['copied', 'edited', 'planned', 'imported', 'live', 'blank']),
+  previous: z.object({ weekStart: localDate.nullable(), text: z.string().max(300), sets: z.array(performanceSet).max(30) }).nullable(),
+  uncertain: noteFields,
+});
+
+export const weeklySessionSchema = z.object({
+  id,
+  dayId: id.nullable(),
+  name: shortText,
+  localDate: localDate.nullable(),
+  status: z.enum(WEEKLY_SESSION_STATUSES),
+  sessionId: id.nullable(),
+  live: z.boolean(),
+  exercises: z.array(exercisePerformanceSchema).max(40),
+  note: z.string().max(1000),
+});
+
+export const trainingWeekSchema = z.object({
+  weekStart: localDate,
+  programmeId: id.nullable(),
+  status: z.enum(['draft', 'confirmed']),
+  sessions: z.array(weeklySessionSchema).max(14),
+  copiedFrom: localDate.nullable(),
+  createdAt: isoInstant,
+  updatedAt: isoInstant,
+  confirmedAt: isoInstant.nullable(),
+  revision: z.number().int().min(0).max(10_000),
+  reviewDismissed: z.boolean(),
+  history: z.array(z.object({ revision: z.number().int().min(0), confirmedAt: isoInstant, sessions: z.array(weeklySessionSchema).max(14) })).max(20),
+});
+
+export const noteRevisionSchema = z.object({ id, programmeId: id, at: isoInstant, reason: shortText, snapshot: programmeSchema });
+
+export const workoutImportSchema = z.object({
+  id,
+  hash: z.string().max(64),
+  mode: z.enum(['template', 'history', 'week']),
+  createdAt: isoInstant,
+  localDate: localDate.nullable(),
+  text: z.string().max(20_000),
+  resultIds: z.array(id).max(500),
+  undated: z
+    .array(z.object({ exerciseId: id, name: shortText, loadType, unit: z.enum(WEIGHT_UNITS), sets: z.array(performanceSet).max(30) }))
+    .max(200),
 });
 
 export const customExerciseSchema = z.object({ id, name: shortText, loadType, tags, createdAt: isoInstant });

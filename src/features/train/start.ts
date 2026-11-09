@@ -50,9 +50,11 @@ export async function repeatSession(args: { source: WorkoutSession; history: rea
         priority: e.priority,
         notes: '',
         plannedLoad: null,
+        uncertain: [],
       })),
+    notes: '',
   };
-  const pseudo: Programme = { id: '', name: '', goal: args.profile.goal, days: [adhoc], daysPerWeek: 1, preferredWeekdays: [], isActive: false, source: 'created', templateId: null, createdAt: '', updatedAt: '' };
+  const pseudo: Programme = { id: '', name: '', goal: args.profile.goal, days: [adhoc], daysPerWeek: 1, preferredWeekdays: [], isActive: false, source: 'created', templateId: null, notes: '', createdAt: '', updatedAt: '' };
   const { created } = await startSession(() => {
     const s = W.sessionFromDay({ id: newId(), now: clock.now(), newId, programme: pseudo, day: adhoc, history: args.history, unit: args.profile.weightUnit, checkIn: null });
     return { ...s, source: 'manual', programmeId: null, dayId: null };

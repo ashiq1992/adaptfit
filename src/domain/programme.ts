@@ -28,6 +28,7 @@ export function programmeExercise(
     priority: args.priority ?? false,
     notes: args.notes ?? '',
     plannedLoad: args.plannedLoad ?? null,
+    uncertain: [],
   };
 }
 
@@ -48,6 +49,7 @@ export function createProgramme(
     isActive: true,
     source: args.source ?? 'created',
     templateId: args.templateId ?? null,
+    notes: '',
     createdAt: iso,
     updatedAt: iso,
   };
@@ -59,6 +61,7 @@ export function duplicateDay(day: ProgrammeDay, newId: IdFn): ProgrammeDay {
     id: newId(),
     name: `${day.name} (copy)`,
     exercises: day.exercises.map((e) => ({ ...e, id: newId() })),
+    notes: day.notes,
   };
 }
 
@@ -93,7 +96,7 @@ export function validateProgramme(p: Programme): ProgrammeIssue[] {
     d.exercises.forEach((e, ei) => {
       const at = `days.${di}.exercises.${ei}`;
       if (!Number.isInteger(e.sets) || e.sets < 1 || e.sets > 20) issues.push({ path: `${at}.sets`, message: `${e.name}: sets must be 1–20.` });
-      if (e.loadType !== 'timed') {
+      if (e.loadType !== 'timed' && !e.uncertain?.includes('reps')) {
         if (e.repMin === null || e.repMax === null) issues.push({ path: `${at}.reps`, message: `${e.name}: set a rep range.` });
         else if (!Number.isInteger(e.repMin) || !Number.isInteger(e.repMax) || e.repMin < 1 || e.repMax > 100 || e.repMin > e.repMax)
           issues.push({ path: `${at}.reps`, message: `${e.name}: rep range must be whole numbers with min ≤ max.` });
@@ -191,10 +194,10 @@ export function starterUpperLower(newId: IdFn, now: Date, goal: TrainingGoal = '
   const pe = (exerciseId: string, sets: number, repMin: number, repMax: number, restSec: number, priority = false) =>
     programmeExercise(newId, { exerciseId, sets, repMin, repMax, restSec, priority });
   const days: ProgrammeDay[] = [
-    { id: newId(), name: 'Upper Body A', exercises: [pe('smith-bench-press', 3, 6, 10, 150, true), pe('lat-pulldown', 3, 8, 12, 120, true), pe('cable-row', 3, 8, 12, 90), pe('lateral-raise', 3, 12, 15, 60)] },
-    { id: newId(), name: 'Lower Body A', exercises: [pe('smith-squat', 3, 6, 10, 180, true), pe('db-rdl', 3, 8, 12, 120), pe('leg-curl', 3, 10, 15, 90), pe('calf-raise', 3, 10, 15, 60)] },
-    { id: newId(), name: 'Upper Body B', exercises: [pe('incline-db-press', 3, 8, 12, 120, true), pe('db-row', 3, 8, 12, 90), pe('db-shoulder-press', 3, 8, 12, 90), pe('triceps-pushdown', 2, 10, 15, 60), pe('db-curl', 2, 10, 15, 60)] },
-    { id: newId(), name: 'Lower Body B', exercises: [pe('leg-press', 3, 8, 12, 150, true), pe('hip-thrust', 3, 8, 12, 120), pe('leg-extension', 3, 10, 15, 90), pe('calf-raise', 3, 10, 15, 60)] },
+    { id: newId(), name: 'Upper Body A', notes: '', exercises: [pe('smith-bench-press', 3, 6, 10, 150, true), pe('lat-pulldown', 3, 8, 12, 120, true), pe('cable-row', 3, 8, 12, 90), pe('lateral-raise', 3, 12, 15, 60)] },
+    { id: newId(), name: 'Lower Body A', notes: '', exercises: [pe('smith-squat', 3, 6, 10, 180, true), pe('db-rdl', 3, 8, 12, 120), pe('leg-curl', 3, 10, 15, 90), pe('calf-raise', 3, 10, 15, 60)] },
+    { id: newId(), name: 'Upper Body B', notes: '', exercises: [pe('incline-db-press', 3, 8, 12, 120, true), pe('db-row', 3, 8, 12, 90), pe('db-shoulder-press', 3, 8, 12, 90), pe('triceps-pushdown', 2, 10, 15, 60), pe('db-curl', 2, 10, 15, 60)] },
+    { id: newId(), name: 'Lower Body B', notes: '', exercises: [pe('leg-press', 3, 8, 12, 150, true), pe('hip-thrust', 3, 8, 12, 120), pe('leg-extension', 3, 10, 15, 90), pe('calf-raise', 3, 10, 15, 60)] },
   ];
   return createProgramme(newId, now, { name: 'Upper / Lower (example)', goal, days, daysPerWeek: 4, preferredWeekdays: [1, 2, 4, 5], source: 'starter' });
 }

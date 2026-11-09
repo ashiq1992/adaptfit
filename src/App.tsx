@@ -8,6 +8,7 @@ import { AppContext, type AppContextValue } from './ui/DataContext';
 import { useHash } from './ui/hooks';
 import { IconCoach, IconNotes, IconProgress, Logo, Wordmark } from './ui/icons';
 import { useKeyboardAwareness } from './ui/keyboard';
+import { RestTimerBar } from './ui/RestTimerBar';
 
 // Plan and the workout note are the everyday screens and stay in the main bundle.
 const WeeklyScreen = lazy(() => import('./features/weekly/WeeklyScreen').then((m) => ({ default: m.WeeklyScreen })));
@@ -176,6 +177,7 @@ function Shell() {
             {route.name === 'done' && <FinishedScreen id={route.id} />}
           </Suspense>
         </main>
+        {!inWorkout && <RestTimerBar />}
         {!inWorkout && <Nav current={tab} activeWorkout={!!ctx.data.active} coachDot={coachDot} />}
       </div>
     </AppContext.Provider>

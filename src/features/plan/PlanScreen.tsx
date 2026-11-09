@@ -10,6 +10,7 @@ import { IconCheck, IconChevronRight, IconNotes, IconPlus, Wordmark } from '../.
 import { ScreenHeader } from '../../ui/ScreenHeader';
 import { dayDate } from '../format';
 import { createBlankNote } from '../notes/actions';
+import { WeekSummary } from './WeekSummary';
 
 const PREVIEW_COUNT = 3;
 const WEEKDAY_INITIALS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -25,6 +26,7 @@ export function PlanScreen() {
     <div className="screen plan-screen">
       <ScreenHeader title={<Wordmark />} kicker={dayDate(today)} settings />
       {programme ? <Today programme={programme} /> : <StartNote />}
+      <WeekSummary thisWeekStart={weekStart} />
       {programme && <ThisWeek programme={programme} weekStart={weekStart} week={week} />}
       <NoteList programmes={data.programmes} />
       <nav className="plan-links" aria-label="More">

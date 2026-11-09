@@ -11,13 +11,17 @@ import { clock } from '../../ui/clock';
 import { useApp } from '../../ui/DataContext';
 import { ConfirmDialog, Dialog } from '../../ui/Dialog';
 import { navigate, useLive } from '../../ui/hooks';
-import { IconDown, IconMore, IconPlus, IconTrash, IconUp } from '../../ui/icons';
+import { IconClock, IconDown, IconMore, IconPlus, IconTrash, IconUp } from '../../ui/icons';
 import { ScreenHeader } from '../../ui/ScreenHeader';
 import { hashParams, weekLabel } from '../format';
 import { startDay } from '../train/start';
 import { BlockEditor, listDrafts, readDraft } from './BlockEditor';
 import { CopyDialog } from '../../ui/CopyDialog';
 import { applySameAnswer, familyWord, sameAnswerOffer, type SameAnswerOffer } from '../../domain/clarify';
+import { recentBest } from '../../domain/bests';
+import { plateCalculable } from '../../domain/plates';
+import { restLabel, startRest } from '../../ui/restTimer';
+import { PlatesDialog } from './PlatesDialog';
 
 type Editing =
   | { kind: 'exercise'; dayId: string; exId: string | 'new' }
@@ -456,7 +460,12 @@ function SaveIndicator({ state }: { state: SaveState }) {
 
 /** One exercise as note text, with anything uncertain shown in amber and resolvable in one tap. */
 function ExerciseLine({ ex, unit, onEdit, onPatch, onLoadType }: { ex: ProgrammeExercise; unit: 'kg' | 'lb'; onEdit: () => void; onPatch: (p: Partial<ProgrammeExercise>, reason: string) => void; onLoadType?: (t: LoadType) => void }) {
-  const { data } = useApp();
+  const { data, today } = useApp();
+  const announce = useAnnounce();
+  const [plates, setPlates] = useState(false);
+  const best = useMemo(() => recentBest(ex, data.sessions, today), [ex, data.sessions, today]);
+  const canPlates = plateCalculable(ex);
+  const rest = ex.restSec > 0 ? restLabel(ex.restSec) : null;
   const pres = prescription(ex, unit);
   const last = useMemo(() => latestReference(ex, data.sessions, data.imports, '9999-12-31'), [ex, data.sessions, data.imports]);
   const lastText = last ? performanceText(last.sets, ex.loadType, last.unit === 'lb' ? 'lb' : 'kg') : null;
@@ -465,7 +474,14 @@ function ExerciseLine({ ex, unit, onEdit, onPatch, onLoadType }: { ex: Programme
     <li className="note-line">
       <button type="button" className="note-ex" onClick={onEdit}>
         <span className="visually-hidden">Edit </span>
-        <span className="note-ex-name">{ex.name}</span>
+        <span className="note-ex-head">
+          <span className="note-ex-name">{ex.name}</span>
+          {best && (
+            <span className="pill pill-pr note-best" data-testid="new-best">
+              New best
+            </span>
+          )}
+        </span>
         <span className="note-ex-pres">{pres || <span className="faint">Tap to add sets and reps</span>}</span>
         {ex.notes && <span className="note-ex-notes">{ex.notes}</span>}
         {lastText && (
@@ -475,6 +491,36 @@ function ExerciseLine({ ex, unit, onEdit, onPatch, onLoadType }: { ex: Programme
           </span>
         )}
       </button>
+      {(rest || canPlates) && (
+        <div className="note-ex-tools">
+          {rest && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              aria-label={`Rest ${rest}: start the timer for ${ex.name}`}
+              onClick={() => {
+                startRest(ex.name, ex.restSec);
+                announce(`Rest timer started: ${rest}.`);
+              }}
+            >
+              <IconClock size={16} /> Rest {rest}
+            </button>
+          )}
+          {canPlates && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPlates(true)} aria-label={`Plates for ${ex.name}`}>
+              Plates
+            </button>
+          )}
+        </div>
+      )}
+      {plates && (
+        <PlatesDialog
+          ex={ex}
+          unit={ex.plannedLoad?.unit ?? (last?.unit === 'lb' ? 'lb' : last ? 'kg' : unit)}
+          start={ex.plannedLoad?.value ?? (last ? Math.max(0, ...last.sets.map((s) => s.load ?? 0)) || null : null)}
+          onClose={() => setPlates(false)}
+        />
+      )}
       {ex.uncertain.filter((f) => f !== 'sets' && f !== 'reps').map((f) => (
         <div key={f} className="clarify" role="group" aria-label={UNCERTAIN_LABEL[f]}>
           <span className="clarify-q">{UNCERTAIN_LABEL[f]}</span>

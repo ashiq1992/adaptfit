@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.0 — 2026-11-09 — "At the gym"
+
+### Added
+- **Rest timer from your note.** Each exercise with a rest time has **Rest 2 min**; the countdown stays above the tab bar on every screen, has +30 s and Stop, keeps time while the phone sleeps (end time, not a countdown), and signals the end with a beep (and vibration on Android).
+- **Plate calculator.** **Plates** on plate-loaded lifts (per-side loads, and barbells written as a total) shows the fewest standard plates for each side, starting from the weight in your note or your last record (editable). For a barbell total you pick your bar once (20/15/10 kg or 45/35/25 lb); bar weight is never assumed. If standard plates can’t make the weight exactly, it says by how much.
+- **New best** tag on an exercise when its latest confirmed record beat every earlier comparable one (same rule as Progress), for 14 days.
+- **Weekly summary on Plan** after a week is confirmed: sessions done, new bests, what improved, the review’s closing advice, with **See review** and **Share**; can be hidden.
+
+### Tests
+- 11 unit tests (plates in kg/lb, bar handling, rest timer maths, new-best rules, summary week) and 3 browser tests (rest timer across screens to “Rest over”, plates from the last record, a heavier week giving New best plus the summary with Share and hide).
+
 ## 0.6.0 — 2026-11-09 — "Less typing"
 
 ### Added

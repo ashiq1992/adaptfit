@@ -173,6 +173,12 @@ export const IconCross = (p: P) => (
     <path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6V3Z" />
   </I>
 );
+/** Close / dismiss: an x. */
+export const IconClose = (p: P) => (
+  <I {...p}>
+    <path d="M6 6l12 12M18 6 6 18" />
+  </I>
+);
 export const IconFlex = (p: P) => (
   <I {...p}>
     <path d="M5 19c3 1 9 1 13-2 2-1.5 2-5-1-6-2-.6-3.5.5-4 1.5L11 9l2-3-3-2-3 4-2 6v5Z" />

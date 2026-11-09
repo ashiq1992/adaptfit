@@ -1,7 +1,7 @@
 {
   "name": "adaptfit",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "AdaptFit — a local-first gym companion: log your own programme fast, see real progress, get explainable coaching, and level up a pixel adventurer.",
   "type": "module",
   "engines": {

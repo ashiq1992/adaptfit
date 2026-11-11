@@ -1,34 +1,47 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
+import { deleteSession } from '../../data/repo';
 import { addDays } from '../../domain/dates';
-import { performanceText, prescription } from '../../domain/noteFormat';
+import { estimateDayMinutes } from '../../domain/programme';
 import { weekStartOf } from '../../domain/progression';
-import type { Programme, ProgrammeExercise, TrainingWeek } from '../../domain/types';
-import { isCounted, latestReference, plannedSlots, suggestedDate, weekCounts, weekDates } from '../../domain/weekly';
+import type { Programme, ProgrammeDay, TrainingWeek } from '../../domain/types';
+import { dedupeSessions } from '../../domain/weekly';
+import { useAnnounce } from '../../ui/Announcer';
 import { useApp } from '../../ui/DataContext';
 import { IconCheck, IconChevronRight, IconNotes, IconPlus, Wordmark } from '../../ui/icons';
 import { ScreenHeader } from '../../ui/ScreenHeader';
 import { dayDate } from '../format';
 import { createBlankNote } from '../notes/actions';
+import { LogWorkoutDialog } from './LogWorkout';
 import { useTodayTarget } from './todayTarget';
 import { WeekSummary } from './WeekSummary';
 
-const PREVIEW_COUNT = 3;
-const WEEKDAY_INITIALS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const SHORT_DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-/** Plan: the main screen. Today's workout is the hero, one tap away. */
+/**
+ * Plan, the home screen: your workouts, ready to log. Every day of the current
+ * note is one tap from logging; the suggested one ("Next up") is highlighted
+ * but never forced, so doing a different workout today costs nothing extra.
+ */
 export function PlanScreen() {
   const { data, today } = useApp();
   const programme = data.activeProgramme;
   const weekStart = weekStartOf(today);
   const week = data.trainingWeeks.find((w) => w.weekStart === weekStart) ?? null;
+  const others = data.programmes.filter((p) => p.id !== programme?.id);
 
   return (
     <div className="screen plan-screen">
       <ScreenHeader title={<Wordmark />} kicker={dayDate(today)} settings />
-      {programme ? <Today programme={programme} /> : <StartNote />}
       <WeekSummary thisWeekStart={weekStart} />
-      {programme && <ThisWeek programme={programme} weekStart={weekStart} week={week} />}
-      <NoteList programmes={data.programmes} />
+      {programme ? (
+        <>
+          <ThisWeek programme={programme} weekStart={weekStart} week={week} />
+          <Workouts programme={programme} />
+        </>
+      ) : (
+        <StartNote />
+      )}
+      {others.length > 0 && <NoteList programmes={others} />}
       <nav className="plan-links" aria-label="More">
         <PlanLink href="#/library" label="Browse programmes" />
         <PlanLink href="#/import" label="Import from Notes" />
@@ -47,127 +60,151 @@ function PlanLink({ href, label }: { href: string; label: string }) {
   );
 }
 
-/** Today's (or the next) planned session, shown like the top of a notebook page. */
-function Today({ programme }: { programme: Programme }) {
-  const { data } = useApp();
-  const unit = data.profile.weightUnit;
+/** The current note's days as cards: open one to see or edit it, or log it straight away. */
+function Workouts({ programme }: { programme: Programme }) {
+  const { data, today } = useApp();
+  const announce = useAnnounce();
   const target = useTodayTarget(programme);
-  if (!target) return null;
-  const href = `#/note/${encodeURIComponent(programme.id)}/${encodeURIComponent(target.day.id)}`;
-  const shown = target.day.exercises.slice(0, PREVIEW_COUNT);
-  const more = target.day.exercises.length - shown.length;
+  const [logging, setLogging] = useState<ProgrammeDay | null>(null);
+  const [logged, setLogged] = useState<{ id: string; name: string; date: string } | null>(null);
+  const noteHref = `#/note/${encodeURIComponent(programme.id)}`;
+  const doneToday = new Set(data.completed.filter((s) => s.programmeId === programme.id && s.completedLocalDate === today).map((s) => s.dayId));
+
   return (
-    <section className="today" aria-labelledby="today-title">
-      <div>
-        <p className="today-label">{target.label}</p>
-        <h2 id="today-title" className="today-title">
-          <a href={href} className="card-link" data-testid="today-card">
-            {target.day.name}
-          </a>
-        </h2>
-        <p className="today-meta">
-          {target.day.exercises.length} exercise{target.day.exercises.length === 1 ? '' : 's'} · {programme.name}
+    <section className="page-section" aria-labelledby="workouts-title">
+      <h2 id="workouts-title">
+        Your workouts
+        <a href={noteHref} aria-label={`Edit ${programme.name}`}>
+          Edit
+        </a>
+      </h2>
+      <p className="small muted workouts-note">{programme.name}</p>
+      {programme.days.length === 0 ? (
+        <p className="muted">
+          No workouts in this note yet. <a href={noteHref}>Add one</a>
         </p>
-      </div>
-      {shown.length > 0 && (
-        <ul className="today-list" aria-label={`${target.day.name} exercises`}>
-          {shown.map((ex) => (
-            <TodayLine key={ex.id} ex={ex} unit={unit} />
-          ))}
-          {more > 0 && (
-            <li className="today-more">
-              + {more} more
-            </li>
-          )}
-        </ul>
+      ) : (
+        <ol className="workout-list">
+          {programme.days.map((d) => {
+            const isTarget = target?.day.id === d.id;
+            const n = d.exercises.length;
+            const names = d.exercises.slice(0, 3).map((x) => x.name);
+            const done = doneToday.has(d.id);
+            return (
+              <li key={d.id} className={`workout-card${isTarget ? ' is-next' : ''}`}>
+                <a href={`${noteHref}/${encodeURIComponent(d.id)}`} className="workout-card-link" data-testid={isTarget ? 'today-card' : 'workout-card'}>
+                  <span className="workout-card-top">
+                    <span className="workout-card-name">{d.name}</span>
+                    {done ? (
+                      <span className="pill pill-completed">
+                        <IconCheck size={14} /> Done today
+                      </span>
+                    ) : (
+                      isTarget && <span className="pill pill-next">{target.label}</span>
+                    )}
+                  </span>
+                  <span className="day-row-meta">{n === 0 ? 'No exercises yet' : `${n} exercise${n === 1 ? '' : 's'} · about ${estimateDayMinutes(d)} min`}</span>
+                  {names.length > 0 && (
+                    <span className="day-row-ex">
+                      {names.join(', ')}
+                      {n > names.length ? `, +${n - names.length} more` : ''}
+                    </span>
+                  )}
+                </a>
+                {n > 0 && (
+                  <button type="button" className={`btn ${isTarget && !done ? 'btn-primary' : 'btn-secondary'} btn-sm workout-card-log`} aria-label={`Log ${d.name}`} onClick={() => setLogging(d)}>
+                    Log
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ol>
       )}
-      <a href={href} className="btn btn-primary btn-block btn-lg">
-        Open workout
-      </a>
+      {logging && (
+        <LogWorkoutDialog
+          programme={programme}
+          day={logging}
+          onClose={() => setLogging(null)}
+          onLogged={(id, date) => {
+            setLogged({ id, name: logging.name, date });
+            setLogging(null);
+            announce(`${logging.name} logged for ${date === today ? 'today' : dayDate(date)}.`);
+          }}
+        />
+      )}
+      {logged && (
+        <div className="toast" role="status" data-testid="logged-toast">
+          <span>
+            {logged.name} logged{logged.date === today ? ' for today' : ` for ${dayDate(logged.date)}`}.
+          </span>
+          <button
+            type="button"
+            className="btn btn-tertiary btn-sm"
+            onClick={() => {
+              const l = logged;
+              setLogged(null);
+              void deleteSession(l.id).then(() => announce('Log removed.'));
+            }}
+          >
+            Undo
+          </button>
+          <button type="button" className="btn btn-tertiary btn-sm" onClick={() => setLogged(null)}>
+            OK
+          </button>
+        </div>
+      )}
     </section>
   );
 }
 
-/** Plan line: the printed prescription, and last time's record in blue ink. */
-function TodayLine({ ex, unit }: { ex: ProgrammeExercise; unit: 'kg' | 'lb' }) {
-  const { data } = useApp();
-  const last = useMemo(() => latestReference(ex, data.sessions, data.imports, '9999-12-31'), [ex, data.sessions, data.imports]);
-  const lastText = last ? performanceText(last.sets, ex.loadType, last.unit === 'lb' ? 'lb' : 'kg') : null;
-  return (
-    <li>
-      <span className="note-ex-name">{ex.name}</span>
-      <span className="note-ex-pres">{prescription(ex, unit) || '—'}</span>
-      {lastText && (
-        <span className="note-ex-last">
-          <span className="when">Last</span>
-          {lastText}
-        </span>
-      )}
-    </li>
-  );
-}
-
-/** This week as a strip of days: planned days outlined, recorded days ticked in blue ink. */
+/**
+ * This week as a count towards the weekly target ("2 of 3"), not a row of
+ * weekdays: a missed Wednesday isn't a failure, only the week's total counts.
+ * Also the way into the weekly update, to fill in workouts not logged here.
+ */
 function ThisWeek({ programme, weekStart, week }: { programme: Programme; weekStart: string; week: TrainingWeek | null }) {
   const { data, today } = useApp();
-  const slots = plannedSlots(programme, data.weekPlans, weekStart);
-  const counts = week ? weekCounts(week) : null;
-  const planned = counts?.planned ?? slots.length;
-  const done = week ? week.sessions.filter(isCounted).length : 0;
+  const weekEnd = addDays(weekStart, 6);
+  // A weekly update and a log of the same workout count once.
+  const counted = dedupeSessions(data.completed)
+    .filter((s) => s.completedLocalDate && s.completedLocalDate >= weekStart && s.completedLocalDate <= weekEnd)
+    .sort((a, b) => (a.completedLocalDate! < b.completedLocalDate! ? -1 : 1));
+  const target = Math.max(1, programme.daysPerWeek || programme.days.length);
+  const n = counted.length;
   const confirmed = week?.status === 'confirmed';
   const lateInWeek = today >= addDays(weekStart, 4);
-
-  const dates = weekDates(weekStart);
-  const plannedDates = new Set(slots.map((s, i) => suggestedDate(programme, programme.days.find((d) => d.id === s.dayId)?.name ?? '', i, weekStart)).filter((d): d is string => !!d));
-  const doneDates = new Set<string>();
-  const skippedDates = new Set<string>();
-  for (const s of week?.sessions ?? []) {
-    if (!s.localDate) continue;
-    if (isCounted(s)) doneDates.add(s.localDate);
-    else if (s.status === 'skipped') skippedDates.add(s.localDate);
-  }
-  for (const s of data.completed) if (s.completedLocalDate && s.completedLocalDate >= weekStart && s.completedLocalDate <= dates[6]!) doneDates.add(s.completedLocalDate);
-
-  let status: string;
-  if (confirmed) status = `Confirmed · ${done} of ${planned} session${planned === 1 ? '' : 's'} recorded`;
-  else if (week) status = `Draft saved · ${done} of ${planned} marked done`;
-  else status = `${planned} planned session${planned === 1 ? '' : 's'} · nothing recorded yet`;
-
+  const status = n === 0 ? `0 of ${target} workouts · nothing logged yet` : n >= target ? `${n} of ${target} workouts · week’s target reached` : `${n} of ${target} workouts · ${target - n} to go`;
   return (
-    <section className="page-section" aria-labelledby="week-title">
+    <section className="page-section week-progress" aria-labelledby="week-title">
       <h2 id="week-title">
         This week
         <a href="#/week" data-testid="update-week">
-          {confirmed ? 'Review this week' : week ? 'Continue weekly update' : 'Update this week'}
+          {confirmed ? 'Review this week' : week ? 'Continue weekly update' : 'Fill in the week'}
         </a>
       </h2>
-      <ol className="week-strip" aria-label="Days this week">
-        {dates.map((d, i) => {
-          const state = doneDates.has(d) ? 'done' : skippedDates.has(d) ? 'skipped' : plannedDates.has(d) ? 'planned' : 'rest';
-          const label = `${dayDate(d)}: ${state === 'done' ? 'trained' : state === 'skipped' ? 'skipped' : state === 'planned' ? 'planned' : 'no session planned'}`;
-          return (
-            <li key={d} className={d === today ? 'is-today' : undefined} aria-label={label}>
-              <span aria-hidden="true">{WEEKDAY_INITIALS[i]}</span>
-              <span className={`week-dot ${state}`} aria-hidden="true">
-                {state === 'done' && <IconCheck />}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
+      <div className="week-pips" role="img" aria-label={`${n} of ${target} workouts done this week`}>
+        {Array.from({ length: Math.max(target, n) }, (_, i) => (
+          <span key={i} className={`week-pip${i < n ? ' done' : ''}`} />
+        ))}
+      </div>
       <p className="week-status" data-testid="week-status">
         {status}
       </p>
-      {!confirmed && lateInWeek && data.profile.notifications.weeklyReminder && <p className="small attention-text">Update any time before Sunday.</p>}
+      {counted.length > 0 && (
+        <p className="small muted" data-testid="week-done">
+          {counted.map((s) => `${SHORT_DAY[new Date(`${s.completedLocalDate}T12:00:00`).getDay()]} ${s.name}`).join(' · ')}
+        </p>
+      )}
+      {!confirmed && lateInWeek && n < target && data.profile.notifications.weeklyReminder && <p className="small muted">Trained without logging? Fill in the week any time before Sunday.</p>}
     </section>
   );
 }
 
 function NoteList({ programmes }: { programmes: Programme[] }) {
-  if (!programmes.length) return null;
   return (
     <section aria-labelledby="notes-title" className="page-section">
-      <h2 id="notes-title">Workout notes</h2>
+      <h2 id="notes-title">Other workout notes</h2>
       <ul className="note-list">
         {programmes.map((p) => (
           <li key={p.id}>
@@ -176,10 +213,7 @@ function NoteList({ programmes }: { programmes: Programme[] }) {
                 <IconNotes />
               </span>
               <span className="note-card-body">
-                <span className="note-card-title">
-                  {p.name}
-                  {p.isActive && <span className="pill pill-completed">Current</span>}
-                </span>
+                <span className="note-card-title">{p.name}</span>
                 <span className="note-card-meta">{p.days.map((d) => d.name).join(' · ') || 'Empty note'}</span>
               </span>
               <IconChevronRight size={18} />

@@ -1,19 +1,23 @@
 import { useMemo } from 'react';
 import { nextDay } from '../../domain/programme';
-import { weekStartOf } from '../../domain/progression';
+import { weekdayOf } from '../../domain/noteParser';
 import type { Programme, ProgrammeDay } from '../../domain/types';
-import { plannedSlots, suggestedDate } from '../../domain/weekly';
 import { useApp } from '../../ui/DataContext';
 
-/** Today's planned day of this programme, else the next one to do. */
-export function useTodayTarget(programme: Programme): { day: ProgrammeDay; label: 'Today' | 'Next' } | null {
+/**
+ * The day to suggest: "Today" only when a day is named for today's weekday
+ * ("Monday Push") and isn't logged yet; otherwise "Next up", the day after the
+ * last one logged (a rotation, so a missed weekday never leaves you behind).
+ * It is only a suggestion: every day can be logged with one tap.
+ */
+export function useTodayTarget(programme: Programme): { day: ProgrammeDay; label: 'Today' | 'Next up' } | null {
   const { data, today } = useApp();
-  const weekStart = weekStartOf(today);
   return useMemo(() => {
-    const slots = plannedSlots(programme, data.weekPlans, weekStart);
-    const todays = slots.map((s, i) => ({ s, date: suggestedDate(programme, programme.days.find((d) => d.id === s.dayId)!.name, i, weekStart) })).find((x) => x.date === today);
-    if (todays) return { day: programme.days.find((d) => d.id === todays.s.dayId)!, label: 'Today' as const };
+    const weekday = new Date(`${today}T12:00:00`).getDay();
+    const doneToday = new Set(data.completed.filter((s) => s.programmeId === programme.id && s.completedLocalDate === today).map((s) => s.dayId));
+    const named = programme.days.find((d) => weekdayOf(d.name) === weekday && !doneToday.has(d.id));
+    if (named) return { day: named, label: 'Today' as const };
     const next = nextDay(programme, data.sessions);
-    return next ? { day: next, label: 'Next' as const } : null;
-  }, [programme, data.weekPlans, data.sessions, weekStart, today]);
+    return next ? { day: next, label: 'Next up' as const } : null;
+  }, [programme, data.sessions, data.completed, today]);
 }

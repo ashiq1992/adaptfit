@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
-import { watchForErrors } from './helpers';
+import { openNoteDays, watchForErrors } from './helpers';
 
 /** Paste a note through onboarding and land on it. */
 async function pasteNote(page: Page, note: string) {
@@ -85,7 +85,7 @@ test.describe('Rest between sets', () => {
     await expect(restBtn('Cable row')).toHaveText(/Rest 45 s/);
 
     // Every exercise at once, from the note menu (on the note's list of days).
-    await page.getByRole('link', { name: 'All days' }).click();
+    await openNoteDays(page);
     await page.getByRole('button', { name: 'Note options' }).click();
     await page.getByRole('button', { name: 'Rest between sets…' }).click();
     await page.getByRole('dialog', { name: 'Rest between sets' }).getByRole('button', { name: /^3 min/ }).click();

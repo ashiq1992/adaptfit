@@ -13,7 +13,7 @@ import { ConfirmDialog, Dialog } from '../../ui/Dialog';
 import { navigate, useLive } from '../../ui/hooks';
 import { IconBack, IconChevronRight, IconClock, IconDown, IconMore, IconPlus, IconTrash, IconUp } from '../../ui/icons';
 import { ScreenHeader } from '../../ui/ScreenHeader';
-import { hashParams, weekLabel } from '../format';
+import { dayDate, hashParams, weekLabel } from '../format';
 import { startDay } from '../train/start';
 import { BlockEditor, listDrafts, readDraft } from './BlockEditor';
 import { CopyDialog } from '../../ui/CopyDialog';
@@ -23,6 +23,7 @@ import { plateCalculable } from '../../domain/plates';
 import { restLabel, startRest, startHold } from '../../ui/restTimer';
 import { PlatesDialog } from './PlatesDialog';
 import { useTodayTarget } from '../plan/todayTarget';
+import { LogWorkoutDialog } from '../plan/LogWorkout';
 
 type Editing =
   | { kind: 'exercise'; dayId: string; exId: string | 'new' }
@@ -90,7 +91,7 @@ export function NoteScreen({ id, dayId }: { id: string; dayId: string | null }) 
 }
 
 function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId: string | null }) {
-  const { data } = useApp();
+  const { data, today } = useApp();
   const announce = useAnnounce();
   const unit = data.profile.weightUnit;
   // One day at a time: with a day in the address only that day is shown (and
@@ -129,6 +130,7 @@ function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId:
   const [confirm, setConfirm] = useState<'delete-note' | { dayId: string } | null>(null);
   const [copyText, setCopyText] = useState<string | null>(null);
   const [restAll, setRestAll] = useState(false);
+  const [logging, setLogging] = useState<ProgrammeDay | null>(null);
   const revisions = useLive(() => countNoteRevisions(programme.id), [programme.id, programme.updatedAt]);
 
   const ctx = useCallback((): ConvertContext & { created: CustomExercise[] } => ({ newId, unit, custom: data.customExercises, created: [], now: clock.now() }), [unit, data.customExercises]);
@@ -229,14 +231,15 @@ function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId:
   const noteHref = `#/note/${encodeURIComponent(programme.id)}`;
   const dayHref = (d: ProgrammeDay) => `${noteHref}/${encodeURIComponent(d.id)}`;
   const focusIndex = focusDay ? programme.days.findIndex((d) => d.id === focusDay.id) : -1;
-  const prevDay = focusIndex > 0 ? programme.days[focusIndex - 1]! : null;
-  const nextDayOf = focusIndex >= 0 && focusIndex < programme.days.length - 1 ? programme.days[focusIndex + 1]! : null;
+  // Back always goes up one level, named for where it goes: a day of the current
+  // note lives on the home screen's list; other notes' days on their own list.
+  const backTo = focusDay ? (programme.isActive ? { href: '#/plan', label: 'Workouts' } : { href: noteHref, label: programme.name }) : { href: '#/plan', label: 'Workouts' };
   const days = focusDay ? [focusDay] : [];
 
   return (
     <div className="screen note-screen">
       <ScreenHeader
-        back={focusDay ? { href: noteHref, label: 'All days' } : { href: '#/plan', label: 'Plan' }}
+        back={backTo}
         title={
           focusDay ? (
             isEditing({ kind: 'day-name', dayId: focusDay.id }) ? (
@@ -299,13 +302,16 @@ function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId:
 
       {days.map((day) => (
         <section key={day.id} id={`day-${day.id}`} className="note-day" aria-label={`${day.name} exercises`}>
-          {live && (
-            <div className="row">
+          <div className="row wrap">
+            <button type="button" className="btn btn-primary" onClick={() => setLogging(day)}>
+              Log this workout
+            </button>
+            {live && (
               <button type="button" className="btn btn-tertiary btn-sm" onClick={() => void startLive(day)}>
                 Log live
               </button>
-            </div>
-          )}
+            )}
+          </div>
 
           {isEditing({ kind: 'day-text', dayId: day.id }) ? (
             editor({ kind: 'day-text', dayId: day.id }, dayText(day, unit), `Edit ${day.name} as text`, {
@@ -366,23 +372,10 @@ function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId:
         </section>
       ))}
 
-      {focusDay && (prevDay || nextDayOf) && (
-        <nav className="day-nav" aria-label="Other days">
-          {prevDay ? (
-            <a href={dayHref(prevDay)} className="btn btn-tertiary day-nav-prev">
-              <IconBack size={18} /> <span className="day-nav-name">{prevDay.name}</span>
-            </a>
-          ) : (
-            <span />
-          )}
-          {nextDayOf ? (
-            <a href={dayHref(nextDayOf)} className="btn btn-tertiary day-nav-next">
-              <span className="day-nav-name">{nextDayOf.name}</span> <IconChevronRight size={18} />
-            </a>
-          ) : (
-            <span />
-          )}
-        </nav>
+      {focusDay && (
+        <a href={backTo.href} className="btn btn-secondary btn-block day-back">
+          <IconBack size={18} /> Back to {backTo.label.toLowerCase() === 'workouts' ? 'your workouts' : backTo.label}
+        </a>
       )}
 
       {!focusDay && (
@@ -489,6 +482,18 @@ function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId:
         </ConfirmDialog>
       )}
       {copyText !== null && <CopyDialog text={copyText} onClose={() => setCopyText(null)} />}
+      {logging && (
+        <LogWorkoutDialog
+          programme={programme}
+          day={logging}
+          onClose={() => setLogging(null)}
+          onLogged={(_id, date) => {
+            const name = logging.name;
+            setLogging(null);
+            announce(`${name} logged for ${date === today ? 'today' : dayDate(date)}.`);
+          }}
+        />
+      )}
     </div>
   );
 

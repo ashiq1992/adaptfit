@@ -154,6 +154,9 @@ export function deleteSession(id: string): Promise<void> {
   });
 }
 
+/** Save a workout logged in one go (already completed). */
+export const saveLoggedSession = (s: WorkoutSession) => guard('save the workout', async () => void (await getDb().sessions.put(s)));
+
 /** Save imported sessions; rejects any whose import hash already exists. */
 export function saveImportedSessions(sessions: WorkoutSession[]): Promise<{ saved: number; duplicates: number }> {
   return guard('save the imported workouts', () => {

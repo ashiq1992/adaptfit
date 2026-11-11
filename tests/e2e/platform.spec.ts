@@ -276,7 +276,7 @@ test('T59 optional live logging still works and is counted once in the week', as
   await expect(page.getByText('Workout saved', { exact: true })).toBeVisible();
   await page.goto('/#/week');
   await page.getByTestId('copy-previous').click();
-  await expect(page.locator('.week-sheet-day').first()).toContainText('Logged in detail');
+  await expect(page.locator('.week-sheet-day').first()).toContainText('Logged');
 });
 
 test('T37 T57 real-browser upgrade: a V0.1 (v2) database migrates to V0.4 and keeps its history', async ({ page }) => {

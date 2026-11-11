@@ -361,9 +361,9 @@ function SessionBlock({ r, weekStart, onChange }: { r: WeeklySessionRecord; week
     return (
       <section className="week-sheet-day" aria-label={r.name}>
         <h3 className="week-day-name">
-          {r.name} <span className="pill pill-completed">Logged in detail</span>
+          {r.name} <span className="pill pill-completed">Logged</span>
         </h3>
-        <p className="xs muted">{r.localDate ? dayDate(r.localDate) : ''} · Values come from your set-by-set log and are counted once.</p>
+        <p className="xs muted">{r.localDate ? dayDate(r.localDate) : ''} · Values come from your log and are counted once.</p>
         <ul className="note-lines">
           {r.exercises.map((e, i) => (
             <li key={i} className="sheet-line">

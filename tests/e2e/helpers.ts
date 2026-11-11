@@ -60,12 +60,16 @@ export async function openNote(page: Page) {
   await expect(page.locator('.note-day').first()).toBeVisible();
 }
 
-/** The note's list of days (from a day: "All days"). */
+/** The current note's list of days, for editing it (Plan → "Edit"). */
 export async function openNoteDays(page: Page) {
-  const back = page.getByRole('link', { name: 'All days' });
-  if (!(await back.count())) await openNote(page);
-  await page.getByRole('link', { name: 'All days' }).click();
+  await page.goto('/#/plan');
+  await page.getByRole('link', { name: /^Edit / }).click();
   await expect(page.getByTestId('day-row').first()).toBeVisible();
+}
+
+/** Name of the suggested workout on Plan. */
+export async function todaysName(page: Page): Promise<string> {
+  return (await page.getByTestId('today-card').locator('.workout-card-name').innerText()).trim();
 }
 
 /** Open one day from the note's list of days (the first, or by name). */

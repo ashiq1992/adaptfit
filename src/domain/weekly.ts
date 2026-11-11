@@ -128,7 +128,7 @@ export function latestReference(
 }
 
 /** Values implied by the plan (planned load × target reps), clearly marked as planned. */
-function plannedSets(pe: ProgrammeExercise): PerformanceSet[] {
+export function plannedSets(pe: ProgrammeExercise): PerformanceSet[] {
   if (pe.uncertain.includes('sets')) return [];
   if (pe.loadType === 'timed') return pe.durationSec ? Array.from({ length: pe.sets }, () => ({ load: null, reps: null, durationSec: pe.durationSec })) : [];
   if (pe.uncertain.includes('reps') || pe.repMin === null) return [];
@@ -137,7 +137,7 @@ function plannedSets(pe: ProgrammeExercise): PerformanceSet[] {
   return Array.from({ length: pe.sets }, () => ({ load, reps: pe.repMin, durationSec: null }));
 }
 
-function row(pe: ProgrammeExercise, unit: ExercisePerformance['unit'], sets: PerformanceSet[], source: ExercisePerformance['source'], previous: ExercisePerformance['previous']): ExercisePerformance {
+export function row(pe: ProgrammeExercise, unit: ExercisePerformance['unit'], sets: PerformanceSet[], source: ExercisePerformance['source'], previous: ExercisePerformance['previous']): ExercisePerformance {
   return {
     programmeExerciseId: pe.id,
     exerciseId: pe.exerciseId,

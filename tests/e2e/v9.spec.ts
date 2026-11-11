@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
-import { openDay, openNoteDays, seed, watchForErrors } from './helpers';
+import { openDay, openNoteDays, seed, todaysName, watchForErrors } from './helpers';
 
 const PHONE = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } as const;
 
@@ -46,16 +46,18 @@ test.describe('A workout note, one day at a time', () => {
     await page.getByRole('button', { name: 'Done' }).click();
     await expect(page.locator('.note-ex-pres').first()).toHaveText('3 sets × 10 reps — 50 kg');
 
-    // Next and previous day without going back to the list.
-    await page.getByRole('link', { name: /Friday Legs/ }).click();
+    // One way back, at the top and at the bottom: to the workouts on Plan.
+    await expect(page.locator('.day-nav')).toHaveCount(0);
+    await page.getByRole('link', { name: 'Back to your workouts' }).click();
+    await expect(page).toHaveURL(/#\/plan$/);
+    const cards = page.getByTestId(/today-card|workout-card/);
+    await cards.filter({ hasText: 'Friday Legs' }).click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Friday Legs');
     await expect(page.locator('.note-ex-name')).toHaveText(['Leg press', 'Leg curl']);
-    await page.getByRole('link', { name: /Wednesday Pull/ }).click();
-    await expect(page.locator('.note-ex-pres').first()).toHaveText('3 sets × 10 reps — 50 kg');
 
     // Other days are untouched.
-    await page.getByRole('link', { name: 'All days' }).click();
-    await rows.filter({ hasText: 'Monday Push' }).click();
+    await page.getByRole('link', { name: 'Workouts', exact: true }).click();
+    await cards.filter({ hasText: 'Monday Push' }).click();
     await expect(page.locator('.note-ex-pres').first()).toHaveText('3 sets × 8 reps — 30 kg/side');
     expect(errors).toEqual([]);
   });
@@ -69,13 +71,13 @@ test.describe('A workout note, one day at a time', () => {
 
     // From Plan, one tap opens a single day.
     await page.goto('/#/plan');
-    const todays = (await page.getByTestId('today-card').innerText()).trim();
+    const todays = await todaysName(page);
     await page.getByTestId('today-card').click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(todays);
     await expect(page.locator('.note-day')).toHaveCount(1);
 
-    // Add a day: it opens on its own, ready to type.
-    await page.getByRole('link', { name: 'All days' }).click();
+    // Add a day (from the note's list, via Edit): it opens on its own, ready to type.
+    await openNoteDays(page);
     await page.getByRole('button', { name: 'Add day' }).click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Day 3');
     await expect(page.locator('.note-textarea')).toBeFocused();
@@ -83,7 +85,7 @@ test.describe('A workout note, one day at a time', () => {
     await page.getByRole('button', { name: 'Done' }).click();
     await expect(page.locator('.note-ex-name')).toHaveText(['Plank']);
 
-    // Delete it: back on the list, two days left.
+    // Delete it: back on the note's list, two days left.
     await page.getByRole('button', { name: 'Options for Day 3' }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Delete day…' }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Delete day' }).click();
@@ -117,8 +119,8 @@ test.describe('A workout note, one day at a time', () => {
     await openDay(page, 'Friday Legs');
     await page.locator('.note-ex').first().click();
     await page.locator('.note-textarea').fill('Leg press\n3 sets × 12 reps — 110 kg');
-    await page.getByRole('link', { name: 'All days' }).click();
-    await openDay(page, 'Friday Legs');
+    await page.getByRole('link', { name: 'Workouts', exact: true }).click();
+    await page.getByTestId(/today-card|workout-card/).filter({ hasText: 'Friday Legs' }).click();
     await expect(page.locator('.note-ex-pres').first()).toHaveText('3 sets × 12 reps — 110 kg');
   });
 });

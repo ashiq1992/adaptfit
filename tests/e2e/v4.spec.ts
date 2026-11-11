@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
-import { onboard, openDay, openNote, openNoteDays, openThisWeek, seed, watchForErrors } from './helpers';
+import { onboard, openDay, openNote, openNoteDays, openThisWeek, seed, todaysName, watchForErrors } from './helpers';
 
 /**
  * V0.4 journeys in a real browser (Chromium), with SYNTHETIC data.
@@ -23,16 +23,16 @@ test.describe('Notes-first workout view', () => {
     const errors = watchForErrors(page);
     await seed(page, info);
     const m = meter(page);
-    const todays = (await page.getByTestId('today-card').innerText()).trim();
+    const todays = await todaysName(page);
     await m.tap(() => page.getByTestId('today-card').click());
     await expect(page.locator('.note-day').first()).toBeVisible();
     // Opens on that day only: its name is the page title, other days are one tap away.
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(todays);
     await expect(page.locator('.note-day')).toHaveCount(1);
-    await expect(page.getByRole('link', { name: 'All days' })).toBeVisible();
-    await page.getByRole('link', { name: 'All days' }).click();
-    await expect(page.getByTestId('day-row').nth(1)).toBeVisible();
-    await page.getByTestId('day-row').filter({ hasText: 'Upper Body A' }).click();
+    // Back is at the top, named for where it goes: the workouts on Plan.
+    await expect(page.getByRole('link', { name: 'Workouts', exact: true })).toBeVisible();
+    await page.getByRole('link', { name: 'Workouts', exact: true }).click();
+    await page.getByTestId(/today-card|workout-card/).filter({ hasText: 'Upper Body A' }).click();
     const first = page.locator('.note-day').first();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Upper Body A');
     await expect(first.locator('.note-ex-name').first()).toHaveText('Smith machine bench press');
@@ -164,7 +164,7 @@ test.describe('Weekly update', () => {
     await expect(page.getByTestId('history-item')).toHaveCount(await page.getByTestId('history-item').count());
     // T16: the week is stored as history; Plan shows it as confirmed.
     await page.goto('/#/plan');
-    await expect(page.getByTestId('week-status')).toContainText('Confirmed · 3 of 3');
+    await expect(page.getByTestId('week-status')).toContainText('3 of 3 workouts');
   });
 
   test('T12 T13 skipped and unrecorded sessions never count as completed', async ({ page }, info) => {

@@ -1366,8 +1366,34 @@ details.card:not([open]) { padding-top: var(--space-2); padding-bottom: var(--sp
 .day-row-ex { font-size: var(--fs-sm); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .day-row-tags { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); flex: none; }
 .day-row > svg { flex: none; color: var(--text-2); }
-.day-nav { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-top: var(--space-4); }
-.day-nav .btn { min-width: 0; }
-.day-nav-next { justify-self: end; }
-.day-nav-prev { justify-self: start; }
-.day-nav-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.day-back { margin-top: var(--space-5); }
+
+/* ── Plan: your workouts, ready to log ─────────────────────── */
+.workouts-note { margin-top: calc(-1 * var(--space-2)); }
+.workout-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.workout-card {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+}
+.workout-card.is-next { border: 1.5px solid var(--ink); }
+.workout-card:hover { border-color: var(--border-strong); }
+.workout-card.is-next:hover { border-color: var(--ink); }
+.workout-card-link { display: grid; gap: 2px; flex: 1 1 auto; min-width: 0; min-height: var(--touch); color: var(--text); text-decoration: none; }
+.workout-card-link:hover .workout-card-name { text-decoration: underline; text-underline-offset: 3px; }
+.workout-card-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: var(--radius-sm); }
+.workout-card-top { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
+.workout-card-name { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.workout-card-log { flex: none; min-width: 64px; }
+.pill-next { color: var(--on-ink); background: var(--ink); border-color: var(--ink); }
+.week-progress { gap: var(--space-2); }
+.week-pips { display: flex; gap: 6px; }
+.week-pip { flex: 1 1 0; max-width: 72px; height: 8px; border-radius: 999px; background: var(--rule); border: 1px solid var(--border); }
+.week-pip.done { background: var(--record); border-color: var(--record); }
+.log-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.log-row { display: grid; gap: 4px; }
+.log-row-name { font-weight: 600; font-size: var(--fs-sm); }
+.log-row-inputs { display: flex; gap: var(--space-2); align-items: center; }
+.log-row-inputs .input { flex: 1 1 auto; min-width: 0; font-family: var(--font-num); }
+.log-row-inputs .btn[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
+.log-row.is-skipped .log-row-name { color: var(--text-faint); text-decoration: line-through; }

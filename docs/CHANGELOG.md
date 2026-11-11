@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.10.0 — 2026-11-11 — "Your workouts, ready to log"
+
+### Changed
+- **Home lists every workout in your current note**, each with a **Log** button. The suggested one is marked **Next up** and its Log button is filled. Doing a different workout today is the same one tap.
+- **Next up follows what you did, not the calendar**: it's the workout after the last one you logged, so a missed Wednesday never leaves you behind. (A day named for a weekday, such as “Monday Push”, is still suggested on that day.)
+- **Log a workout in one go**: Today, Yesterday or another day; every exercise filled in from what you really did last time (else your plan); change any line or tap Skipped; Save. Undo straight after. It counts in history, progress and the weekly update like any other workout, and only once. “Log set by set while training” is still there.
+- **This week is a count towards your weekly target** (“1 of 3 workouts · 2 to go”), with the workouts done, instead of seven weekday circles. The weekly update is now “Fill in the week”: for workouts you didn't log at the time.
+- **A day page has one way back**: “‹ Workouts” at the top and “Back to your workouts” at the bottom, instead of links to the previous and next day. It also has **Log this workout**.
+- The note's list of days (for adding, renaming and deleting days) is behind **Edit** on home. Other notes are listed as “Other workout notes” only when you have more than one.
+
+### Why (research)
+- Leading strength apps (Hevy, Strong, Stronglifts, Boostcamp) show routines as a list with a “next” workout, rather than locking workouts to weekdays.
+- A field experiment found flexible gym schedules led to more visits than fixed time slots (Beshears, Milkman et al., Management Science 2021).
+- Progress towards a target speeds people up as they near it (goal-gradient effect). Broken streaks lower motivation, so there are no weekday “misses”.
+- Apple and Android guidelines put Back at the top, named for where it goes, and going up a level, not sideways.
+
+### Tests
+- Unit: logging fills in from last time or the plan and never invents values; skipped and empty rows aren't recorded; the rotation moves on; the weekly update counts it once.
+- Browser: home lists every workout; logging a different one than suggested is one tap and can be undone; the day page logs, warns before logging the same day twice, and goes back to home.
+
 ## 0.9.0 — 2026-11-11 — "One day at a time"
 
 ### Changed

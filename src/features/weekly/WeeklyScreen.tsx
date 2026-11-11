@@ -88,7 +88,7 @@ function ConfirmedWeek({ week, onEdit }: { week: TrainingWeek; onEdit: () => voi
                 Edit this week
               </button>
               {week.reviewDismissed && (
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => void setReviewDismissed(week.weekStart, false)}>
+                <button type="button" className="btn btn-tertiary btn-sm" onClick={() => void setReviewDismissed(week.weekStart, false)}>
                   Show on Coach again
                 </button>
               )}
@@ -433,7 +433,7 @@ function SessionBlock({ r, weekStart, onChange }: { r: WeeklySessionRecord; week
                   }}
                 />
                 {r.status === 'partial' && (
-                  <button type="button" className="btn btn-ghost btn-sm" aria-pressed={e.status === 'skipped'} onClick={() => onChange((w) => toggleExerciseSkipped(w, r.id, i, clock.now()))}>
+                  <button type="button" className="btn btn-tertiary btn-sm" aria-pressed={e.status === 'skipped'} onClick={() => onChange((w) => toggleExerciseSkipped(w, r.id, i, clock.now()))}>
                     {e.status === 'skipped' ? 'Skipped' : 'Skip'}
                   </button>
                 )}

@@ -53,17 +53,35 @@ export async function onboard(page: Page, start: StartChoice = 'Skip for now') {
   else await page.getByRole('button', { name: new RegExp(`^${start}`) }).click();
 }
 
-/** Open the current note at its first day. */
+/** Open today's day of the current note (one tap from Plan). */
 export async function openNote(page: Page) {
   await page.goto('/#/plan');
   await page.getByTestId('today-card').click();
   await expect(page.locator('.note-day').first()).toBeVisible();
 }
 
+/** The note's list of days (from a day: "All days"). */
+export async function openNoteDays(page: Page) {
+  const back = page.getByRole('link', { name: 'All days' });
+  if (!(await back.count())) await openNote(page);
+  await page.getByRole('link', { name: 'All days' }).click();
+  await expect(page.getByTestId('day-row').first()).toBeVisible();
+}
+
+/** Open one day from the note's list of days (the first, or by name). */
+export async function openDay(page: Page, name?: string | RegExp) {
+  const rows = page.getByTestId('day-row');
+  await (name ? rows.filter({ hasText: name }).first() : rows.first()).click();
+  await expect(page.locator('.note-day')).toBeVisible();
+}
+
 /** Optional live logging from a day's menu. */
 export async function startLive(page: Page, dayName?: string) {
-  const day = dayName ? page.locator('.note-day', { has: page.getByRole('heading', { name: dayName }) }) : page.locator('.note-day').first();
-  await day.getByRole('button', { name: /^Options for/ }).click();
+  if (dayName) {
+    await openNoteDays(page);
+    await openDay(page, dayName);
+  }
+  await page.getByRole('button', { name: /^Options for/ }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Log sets live (optional)' }).click();
   await expect(page.getByTestId('exercise-name')).toBeVisible();
 }

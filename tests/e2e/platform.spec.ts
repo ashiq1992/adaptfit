@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { contentClearsFixedBars, noHorizontalOverflow, openNote, openThisWeek, seed, setsDone, startLive, watchForErrors } from './helpers';
+import { contentClearsFixedBars, noHorizontalOverflow, openDay, openNote, openNoteDays, openThisWeek, seed, setsDone, startLive, watchForErrors } from './helpers';
 
 /** Mobile app, accessibility, offline, PWA and data-safety checks (Sprint 4 T45–T56, T61–T64, T37). */
 const SCREENS = ['/#/plan', '/#/week', '/#/weeks', '/#/import', '/#/library', '/#/progress', '/#/coach', '/#/coach/fuel', '/#/settings', '/#/history', '/#/library/guide'];
@@ -111,7 +111,7 @@ test('768px and 1280px layouts, keyboard access, axe scan of every screen', asyn
   await page.keyboard.press('Escape');
   await expect(page.locator('.note-textarea')).toHaveCount(0);
   // Dialogs trap focus and close with Escape.
-  await page.getByRole('button', { name: 'Note options' }).click();
+  await page.getByRole('button', { name: /^Options for/ }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -265,7 +265,8 @@ test('T63 backup and restore round-trip (format 4, weekly records included); mal
 
 test('T59 optional live logging still works and is counted once in the week', async ({ page }, info) => {
   await seed(page, info, openThisWeek);
-  await openNote(page);
+  await openNoteDays(page);
+  await openDay(page); // the first day, which is the first row of the week sheet
   await startLive(page);
   await page.getByRole('button', { name: /^Complete set 1/ }).first().click();
   await expect.poll(() => setsDone(page)).toBe(1);

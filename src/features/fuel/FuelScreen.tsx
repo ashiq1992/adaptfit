@@ -345,14 +345,25 @@ function TargetsStep({ draft, estimate, onChange }: { draft: NutritionProfile; e
       )}
       <span className="section-label">Your targets (editable starting points)</span>
       <div className="form-grid">
-        <NumInput label="Daily calories (kcal)" value={shown?.kcal ?? null} onChange={(v) => edit({ kcal: v })} testId="target-kcal" />
-        <NumInput label="Protein from (g)" value={shown?.proteinG?.[0] ?? null} onChange={(v) => edit({ proteinG: v === null ? null : [v, Math.max(v, shown?.proteinG?.[1] ?? v)] })} />
-        <NumInput label="Protein to (g)" value={shown?.proteinG?.[1] ?? null} onChange={(v) => edit({ proteinG: v === null ? null : [Math.min(v, shown?.proteinG?.[0] ?? v), v] })} />
-        <NumInput label="Carbohydrates (g, optional)" value={shown?.carbsG ?? null} onChange={(v) => edit({ carbsG: v })} />
-        <NumInput label="Fat (g, optional)" value={shown?.fatG ?? null} onChange={(v) => edit({ fatG: v })} />
+        <NumInput label="Calories per day (kcal)" value={shown?.kcal ?? null} onChange={(v) => edit({ kcal: v })} testId="target-kcal" />
       </div>
+      <fieldset className="field range-field">
+        <legend className="field-label">Protein per day (g)</legend>
+        <div className="range-inputs">
+          <NumInput label="Protein from (g)" hideLabel value={shown?.proteinG?.[0] ?? null} onChange={(v) => edit({ proteinG: v === null ? null : [v, Math.max(v, shown?.proteinG?.[1] ?? v)] })} />
+          <span className="range-sep" aria-hidden="true">to</span>
+          <NumInput label="Protein to (g)" hideLabel value={shown?.proteinG?.[1] ?? null} onChange={(v) => edit({ proteinG: v === null ? null : [Math.min(v, shown?.proteinG?.[0] ?? v), v] })} />
+        </div>
+      </fieldset>
+      <fieldset className="field">
+        <legend className="field-label">Carbs and fat (optional)</legend>
+        <div className="form-grid">
+          <NumInput label="Carbs (g)" value={shown?.carbsG ?? null} onChange={(v) => edit({ carbsG: v })} />
+          <NumInput label="Fat (g)" value={shown?.fatG ?? null} onChange={(v) => edit({ fatG: v })} />
+        </div>
+      </fieldset>
       {shown?.kcal && shown.proteinG && (
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => edit(macroSplit(shown.kcal!, Math.round((shown.proteinG![0] + shown.proteinG![1]) / 2)))}>
+        <button type="button" className="btn btn-tertiary btn-sm align-start" onClick={() => edit(macroSplit(shown.kcal!, Math.round((shown.proteinG![0] + shown.proteinG![1]) / 2)))}>
           Recalculate carbs and fat from calories
         </button>
       )}
@@ -434,7 +445,7 @@ function FuelDashboard({ profile, onEdit }: { profile: NutritionProfile; onEdit:
             <h2 id="targets-title" className="card-title">
               Daily targets
             </h2>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => onEdit(2)}>
+            <button type="button" className="btn btn-tertiary btn-sm" onClick={() => onEdit(2)}>
               Edit
             </button>
           </div>
@@ -509,7 +520,7 @@ function FuelDashboard({ profile, onEdit }: { profile: NutritionProfile; onEdit:
         <section className="card">
           <div className="row between">
             <h2 className="card-title">Preferences</h2>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => onEdit(3)}>
+            <button type="button" className="btn btn-tertiary btn-sm" onClick={() => onEdit(3)}>
               Edit
             </button>
           </div>
@@ -638,7 +649,7 @@ function MealCard(props: {
         <button type="button" className="btn btn-tertiary btn-sm" onClick={props.onSwap}>
           <IconRepeat size={16} /> Swap
         </button>
-        <button type="button" className="btn btn-ghost btn-sm" aria-pressed={favourite} onClick={props.onFavourite}>
+        <button type="button" className="btn btn-tertiary btn-sm" aria-pressed={favourite} onClick={props.onFavourite}>
           <IconStar size={16} /> {favourite ? 'Saved' : 'Favourite'}
         </button>
       </div>
@@ -657,7 +668,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function NumInput({ label, value, onChange, decimal, testId }: { label: string; value: number | null; onChange: (v: number | null) => void; decimal?: boolean; testId?: string }) {
+function NumInput({ label, value, onChange, decimal, testId, hideLabel }: { label: string; value: number | null; onChange: (v: number | null) => void; decimal?: boolean; testId?: string; hideLabel?: boolean }) {
   const id = useId();
   const [text, setText] = useState(value === null ? '' : String(value));
   useEffect(() => {
@@ -665,7 +676,7 @@ function NumInput({ label, value, onChange, decimal, testId }: { label: string; 
   }, [value]);
   return (
     <div className="field">
-      <label className="field-label" htmlFor={id}>
+      <label className={hideLabel ? 'visually-hidden' : 'field-label'} htmlFor={id}>
         {label}
       </label>
       <input

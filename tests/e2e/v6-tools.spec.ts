@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openThisWeek, seed, watchForErrors } from './helpers';
+import { openDay, openNoteDays, openThisWeek, seed, watchForErrors } from './helpers';
 
 test.describe('Gym tools in the note', () => {
   test('rest timer: starts from the note, keeps running across screens, +30 s, ends with "Rest over"', async ({ page }, info) => {
@@ -30,7 +30,8 @@ test.describe('Gym tools in the note', () => {
 
   test('plate calculator: per-side load shows the plates for each side', async ({ page }, info) => {
     await seed(page, info, openThisWeek);
-    await page.getByTestId('today-card').click();
+    await openNoteDays(page);
+    await openDay(page, 'Upper Body A');
     await page.getByRole('button', { name: 'Plates for Smith machine bench press' }).first().click();
     const dialog = page.getByRole('dialog', { name: /Plates · Smith machine bench press/ });
     // Starts from the last logged weight (the seeded note has no weight written).
@@ -64,7 +65,8 @@ test.describe('Gym tools in the note', () => {
     await expect(page.getByRole('dialog', { name: 'Share this week' }).getByLabel('Week as text')).toHaveValue(/Smith machine bench press: 40 kg\/side × 8, 8, 8/);
     await page.getByRole('dialog', { name: 'Share this week' }).getByRole('button', { name: 'Close' }).click();
 
-    await page.getByTestId('today-card').click();
+    await openNoteDays(page);
+    await openDay(page, 'Upper Body A');
     await expect(page.locator('.note-line').filter({ hasText: 'Smith machine bench press' }).getByTestId('new-best')).toBeVisible();
 
     // Hiding the summary keeps it hidden.

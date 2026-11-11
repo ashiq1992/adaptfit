@@ -247,7 +247,7 @@ function Workout({ session }: { session: WorkoutSession }) {
                 <IconPlus size={18} /> Add set
               </button>
               {!ex.skipped && (
-                <button type="button" className="btn btn-ghost btn-grow" onClick={() => void run((s) => W.setSkipped(s, ex.key, true, clock.now()), `${ex.name} skipped.`)}>
+                <button type="button" className="btn btn-tertiary btn-grow" onClick={() => void run((s) => W.setSkipped(s, ex.key, true, clock.now()), `${ex.name} skipped.`)}>
                   Skip exercise
                 </button>
               )}

@@ -100,7 +100,8 @@ export function NotesImport() {
         });
         if (!r.saved) throw new Error('This exact note was already imported.');
         announce('Imported as a workout note.');
-        navigate(`/note/${encodeURIComponent(p.id)}`);
+        // One day: open it directly. Several: show the list of days.
+        navigate(`/note/${encodeURIComponent(p.id)}${p.days.length === 1 ? `/${encodeURIComponent(p.days[0]!.id)}` : ''}`);
       } else if (mode === 'history') {
         const out = historyRecords(parsed, { date: validDate, undated, hash, now, unit: data.profile.weightUnit }, c);
         const r = await saveImportRecord({ id: newId(), hash, mode, createdAt: now.toISOString(), localDate: undated ? null : validDate, text: text.slice(0, 20_000), resultIds: out.sessions.map((s) => s.id), undated: out.undated }, async () => {

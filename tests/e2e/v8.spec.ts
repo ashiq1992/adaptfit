@@ -84,10 +84,12 @@ test.describe('Rest between sets', () => {
     await page.getByRole('button', { name: 'Done' }).click();
     await expect(restBtn('Cable row')).toHaveText(/Rest 45 s/);
 
-    // Every exercise at once, from the note menu.
+    // Every exercise at once, from the note menu (on the note's list of days).
+    await page.getByRole('link', { name: 'All days' }).click();
     await page.getByRole('button', { name: 'Note options' }).click();
     await page.getByRole('button', { name: 'Rest between sets…' }).click();
     await page.getByRole('dialog', { name: 'Rest between sets' }).getByRole('button', { name: /^3 min/ }).click();
+    await page.getByTestId('day-row').first().click();
     await expect(restBtn('Lat pulldown')).toHaveText(/Rest 3 min/);
     await expect(restBtn('Cable row')).toHaveText(/Rest 3 min/);
     await restBtn('Cable row').click();

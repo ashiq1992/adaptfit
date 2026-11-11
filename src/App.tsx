@@ -106,15 +106,19 @@ function Shell() {
   useKeyboardAwareness();
 
   // Move focus to the new screen's heading for keyboard and screen-reader users.
-  const routeKey = `${route.name}:${'id' in route ? route.id : ''}`;
+  const routeKey = `${route.name}:${'id' in route ? route.id : ''}:${'dayId' in route ? (route.dayId ?? '') : ''}`;
   const first = useRef(true);
   useEffect(() => {
     if (first.current) {
       first.current = false;
       return;
     }
-    mainRef.current?.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true });
-    if (!window.location.hash.includes('/note/') || !route.name.startsWith('note')) window.scrollTo({ top: 0 });
+    // ...unless the new screen already put the cursor in a text box (an editor
+    // reopened with unsaved text): taking focus from it would close the editor.
+    const active = document.activeElement;
+    const typing = !!active && mainRef.current?.contains(active) && active.matches('input, textarea, select, [contenteditable="true"]');
+    if (!typing) mainRef.current?.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true });
+    window.scrollTo({ top: 0 });
   }, [routeKey, route.name]);
 
   const ctx = useMemo<AppContextValue | null>(() => (live.data?.profile ? { data: { ...live.data, profile: live.data.profile }, today } : null), [live.data, today]);

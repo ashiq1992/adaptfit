@@ -177,7 +177,7 @@ export function BlockEditor({
         <span className="grow" />
         <button
           type="button"
-          className="btn btn-ghost btn-sm"
+          className="btn btn-tertiary btn-sm"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => {
             done.current = true;

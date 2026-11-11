@@ -108,7 +108,7 @@ function Summary() {
               <button type="button" className="btn btn-tertiary btn-sm" onClick={() => void setReviewDismissed(latest.weekStart, true).then(() => setShowReview(false))}>
                 Dismiss
               </button>
-              <a href={`#/week/${latest.weekStart}`} className="btn btn-ghost btn-sm">
+              <a href={`#/week/${latest.weekStart}`} className="btn btn-tertiary btn-sm">
                 Open week
               </a>
             </div>
@@ -188,7 +188,7 @@ function Summary() {
           <a href="#/coach/fuel" className="btn btn-tertiary btn-sm">
             AdaptFit Fuel
           </a>
-          <a href="#/settings" className="btn btn-ghost btn-sm">
+          <a href="#/settings" className="btn btn-tertiary btn-sm">
             Sleep and work schedule
           </a>
         </div>
@@ -417,7 +417,7 @@ function RecommendationCard({ rec, painReports }: { rec: CoachRecommendation; pa
         <button type="button" className="btn btn-tertiary btn-grow" onClick={() => void decide('rejected')}>
           Reject
         </button>
-        <button type="button" className="btn btn-ghost btn-grow" onClick={() => void decide('postponed')}>
+        <button type="button" className="btn btn-tertiary btn-grow" onClick={() => void decide('postponed')}>
           Later
         </button>
       </div>

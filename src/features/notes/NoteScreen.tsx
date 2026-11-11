@@ -3,7 +3,7 @@ import { EXERCISES_BY_ID } from '../../content/exercises';
 import { countNoteRevisions, deleteNote, newId, saveNote, undoNote } from '../../data/repo';
 import { LOAD_TYPE_LABEL } from '../../domain/loads';
 import { dayText, exerciseText, type ConvertContext, noteLoad, parseDayText, parseExerciseBlock, performanceText, prescription, programmeText, UNCERTAIN_LABEL } from '../../domain/noteFormat';
-import { createProgramme, duplicateDay } from '../../domain/programme';
+import { createProgramme, duplicateDay, estimateDayMinutes } from '../../domain/programme';
 import type { CustomExercise, LoadType, Programme, ProgrammeDay, ProgrammeExercise } from '../../domain/types';
 import { latestReference } from '../../domain/weekly';
 import { useAnnounce } from '../../ui/Announcer';
@@ -11,7 +11,7 @@ import { clock } from '../../ui/clock';
 import { useApp } from '../../ui/DataContext';
 import { ConfirmDialog, Dialog } from '../../ui/Dialog';
 import { navigate, useLive } from '../../ui/hooks';
-import { IconClock, IconDown, IconMore, IconPlus, IconTrash, IconUp } from '../../ui/icons';
+import { IconBack, IconChevronRight, IconClock, IconDown, IconMore, IconPlus, IconTrash, IconUp } from '../../ui/icons';
 import { ScreenHeader } from '../../ui/ScreenHeader';
 import { hashParams, weekLabel } from '../format';
 import { startDay } from '../train/start';
@@ -22,6 +22,7 @@ import { recentBest } from '../../domain/bests';
 import { plateCalculable } from '../../domain/plates';
 import { restLabel, startRest, startHold } from '../../ui/restTimer';
 import { PlatesDialog } from './PlatesDialog';
+import { useTodayTarget } from '../plan/todayTarget';
 
 type Editing =
   | { kind: 'exercise'; dayId: string; exId: string | 'new' }
@@ -84,21 +85,42 @@ export function NoteScreen({ id, dayId }: { id: string; dayId: string | null }) 
       </div>
     );
   }
-  return <NoteBody key={programme.id} programme={programme} focusDayId={dayId} />;
+  // A fresh page per day: open editors and save state never carry over to another day.
+  return <NoteBody key={`${programme.id}:${dayId ?? ''}`} programme={programme} focusDayId={dayId} />;
 }
 
 function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId: string | null }) {
   const { data } = useApp();
   const announce = useAnnounce();
   const unit = data.profile.weightUnit;
-  const [editing, setEditing] = useState<Editing>(() => {
-    // Reopen an editor whose text wasn't saved (refresh, crash, closed app).
+  // One day at a time: with a day in the address only that day is shown (and
+  // can be edited); without one, the note shows its list of days.
+  const focusDay = focusDayId ? (programme.days.find((d) => d.id === focusDayId) ?? null) : null;
+  const pendingDayId = useMemo(() => {
     const pending = listDrafts(`${programme.id}:`)[0];
-    if (pending) return editingFromKey(programme.id, pending.key);
+    const e = pending ? editingFromKey(programme.id, pending.key) : null;
+    return e && 'dayId' in e && programme.days.some((d) => d.id === e.dayId) ? e.dayId : null;
+  }, [programme.id, programme.days]);
+  // Unsaved text for another day (refresh, crash): open that day to restore it.
+  useEffect(() => {
+    if (pendingDayId && pendingDayId !== focusDay?.id) navigate(`/note/${encodeURIComponent(programme.id)}/${encodeURIComponent(pendingDayId)}`);
+  }, [pendingDayId, focusDay?.id, programme.id]);
+  const [editing, setEditing] = useState<Editing>(() => {
+    // Reopen an editor whose text wasn't saved (refresh, crash, closed app), if it belongs on this page.
+    const pending = listDrafts(`${programme.id}:`)[0];
+    const e = pending ? editingFromKey(programme.id, pending.key) : null;
+    if (e && ('dayId' in e ? e.dayId === focusDay?.id : !focusDay)) return e;
     const p = hashParams();
-    if (p.get('edit') === 'text' && focusDayId) return { kind: 'day-text', dayId: focusDayId };
+    if (p.get('edit') === 'text' && focusDay) return { kind: 'day-text', dayId: focusDay.id };
     return null;
   });
+  // "?edit=text" for a day that was only just created (its data can arrive a moment after this page opens).
+  const askedText = useRef(false);
+  useEffect(() => {
+    if (askedText.current || !focusDay || hashParams().get('edit') !== 'text') return;
+    askedText.current = true;
+    setEditing((cur) => cur ?? { kind: 'day-text', dayId: focusDay.id });
+  }, [focusDay]);
   const [restored] = useState(() => listDrafts(`${programme.id}:`).length > 0);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [removed, setRemoved] = useState<string | null>(null);
@@ -108,14 +130,6 @@ function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId:
   const [copyText, setCopyText] = useState<string | null>(null);
   const [restAll, setRestAll] = useState(false);
   const revisions = useLive(() => countNoteRevisions(programme.id), [programme.id, programme.updatedAt]);
-
-  // Scroll to the requested day (one tap from Plan to today's workout).
-  const scrolled = useRef(false);
-  useEffect(() => {
-    if (scrolled.current || !focusDayId) return;
-    scrolled.current = true;
-    document.getElementById(`day-${focusDayId}`)?.scrollIntoView?.({ block: 'start' });
-  }, [focusDayId]);
 
   const ctx = useCallback((): ConvertContext & { created: CustomExercise[] } => ({ newId, unit, custom: data.customExercises, created: [], now: clock.now() }), [unit, data.customExercises]);
 
@@ -212,12 +226,27 @@ function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId:
 
   const live = data.profile.loggingMode === 'live';
 
+  const noteHref = `#/note/${encodeURIComponent(programme.id)}`;
+  const dayHref = (d: ProgrammeDay) => `${noteHref}/${encodeURIComponent(d.id)}`;
+  const focusIndex = focusDay ? programme.days.findIndex((d) => d.id === focusDay.id) : -1;
+  const prevDay = focusIndex > 0 ? programme.days[focusIndex - 1]! : null;
+  const nextDayOf = focusIndex >= 0 && focusIndex < programme.days.length - 1 ? programme.days[focusIndex + 1]! : null;
+  const days = focusDay ? [focusDay] : [];
+
   return (
     <div className="screen note-screen">
       <ScreenHeader
-        back={{ href: '#/plan', label: 'Plan' }}
+        back={focusDay ? { href: noteHref, label: 'All days' } : { href: '#/plan', label: 'Plan' }}
         title={
-          isEditing({ kind: 'title' }) ? (
+          focusDay ? (
+            isEditing({ kind: 'day-name', dayId: focusDay.id }) ? (
+              <span className="visually-hidden">{focusDay.name}</span>
+            ) : (
+              <button type="button" className="note-title" onClick={() => setEditing({ kind: 'day-name', dayId: focusDay.id })} aria-label={`Day name: ${focusDay.name}. Tap to rename.`}>
+                {focusDay.name}
+              </button>
+            )
+          ) : isEditing({ kind: 'title' }) ? (
             <span className="visually-hidden">{programme.name}</span>
           ) : (
             <button type="button" className="note-title" onClick={() => setEditing({ kind: 'title' })} aria-label={`Note title: ${programme.name}. Tap to rename.`}>
@@ -225,22 +254,30 @@ function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId:
             </button>
           )
         }
+        subtitle={focusDay ? `${programme.name} · day ${focusIndex + 1} of ${programme.days.length}` : undefined}
         actions={
           <>
             <SaveIndicator state={saveState} />
             {(revisions.data ?? 0) > 0 && (
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void undo()} data-testid="undo">
+              <button type="button" className="btn btn-tertiary btn-sm" onClick={() => void undo()} data-testid="undo">
                 Undo
               </button>
             )}
-            <button type="button" className="btn btn-ghost btn-icon" aria-label="Note options" aria-haspopup="dialog" onClick={() => setMenu('note')}>
-              <IconMore />
-            </button>
+            {focusDay ? (
+              <button type="button" className="btn btn-ghost btn-icon" aria-label={`Options for ${focusDay.name}`} aria-haspopup="dialog" onClick={() => setMenu({ dayId: focusDay.id })}>
+                <IconMore />
+              </button>
+            ) : (
+              <button type="button" className="btn btn-ghost btn-icon" aria-label="Note options" aria-haspopup="dialog" onClick={() => setMenu('note')}>
+                <IconMore />
+              </button>
+            )}
           </>
         }
       />
-      {isEditing({ kind: 'title' }) && editor({ kind: 'title' }, programme.name, 'Note title', { single: true })}
-      {!programme.isActive && (
+      {!focusDay && isEditing({ kind: 'title' }) && editor({ kind: 'title' }, programme.name, 'Note title', { single: true })}
+      {focusDay && isEditing({ kind: 'day-name', dayId: focusDay.id }) && editor({ kind: 'day-name', dayId: focusDay.id }, focusDay.name, 'Day name', { single: true })}
+      {!focusDay && !programme.isActive && (
         <p className="small muted">
           Not your current plan.{' '}
           <button type="button" className="link-btn" onClick={() => void saveNote(programme, 'Made current', clock.now(), { activate: true }).then(() => announce('This is now your current plan.'))}>
@@ -249,37 +286,26 @@ function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId:
         </p>
       )}
 
-      {isEditing({ kind: 'preamble' }) ? (
-        editor({ kind: 'preamble' }, programme.notes, 'Note text at the top', { minRows: 2 })
-      ) : programme.notes ? (
-        <button type="button" className="note-free" onClick={() => setEditing({ kind: 'preamble' })}>
-          {programme.notes}
-        </button>
-      ) : null}
+      {!focusDay &&
+        (isEditing({ kind: 'preamble' }) ? (
+          editor({ kind: 'preamble' }, programme.notes, 'Note text at the top', { minRows: 2 })
+        ) : programme.notes ? (
+          <button type="button" className="note-free" onClick={() => setEditing({ kind: 'preamble' })}>
+            {programme.notes}
+          </button>
+        ) : null)}
 
-      {programme.days.map((day) => (
-        <section key={day.id} id={`day-${day.id}`} className="note-day" aria-labelledby={`dayh-${day.id}`}>
-          <div className="note-day-head">
-            {isEditing({ kind: 'day-name', dayId: day.id }) ? (
-              editor({ kind: 'day-name', dayId: day.id }, day.name, 'Day name', { single: true })
-            ) : (
-              <h2 id={`dayh-${day.id}`}>
-                <button type="button" className="note-day-title" onClick={() => setEditing({ kind: 'day-name', dayId: day.id })}>
-                  {day.name}
-                </button>
-              </h2>
-            )}
+      {!focusDay && <DayList programme={programme} dayHref={dayHref} />}
+
+      {days.map((day) => (
+        <section key={day.id} id={`day-${day.id}`} className="note-day" aria-label={`${day.name} exercises`}>
+          {live && (
             <div className="row">
-              {live && (
-                <button type="button" className="btn btn-tertiary btn-sm" onClick={() => void startLive(day)}>
-                  Log live
-                </button>
-              )}
-              <button type="button" className="btn btn-ghost btn-icon" aria-label={`Options for ${day.name}`} aria-haspopup="dialog" onClick={() => setMenu({ dayId: day.id })}>
-                <IconMore />
+              <button type="button" className="btn btn-tertiary btn-sm" onClick={() => void startLive(day)}>
+                Log live
               </button>
             </div>
-          </div>
+          )}
 
           {isEditing({ kind: 'day-text', dayId: day.id }) ? (
             editor({ kind: 'day-text', dayId: day.id }, dayText(day, unit), `Edit ${day.name} as text`, {
@@ -340,16 +366,37 @@ function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId:
         </section>
       ))}
 
-      <button
-        type="button"
-        className="note-add"
-        onClick={() => {
-          const day: ProgrammeDay = { id: newId(), name: `Day ${programme.days.length + 1}`, exercises: [], notes: '' };
-          void save({ ...programme, days: [...programme.days, day] }, 'Added day').then(() => setEditing({ kind: 'day-text', dayId: day.id }));
-        }}
-      >
-        <IconPlus /> Add day
-      </button>
+      {focusDay && (prevDay || nextDayOf) && (
+        <nav className="day-nav" aria-label="Other days">
+          {prevDay ? (
+            <a href={dayHref(prevDay)} className="btn btn-tertiary day-nav-prev">
+              <IconBack size={18} /> <span className="day-nav-name">{prevDay.name}</span>
+            </a>
+          ) : (
+            <span />
+          )}
+          {nextDayOf ? (
+            <a href={dayHref(nextDayOf)} className="btn btn-tertiary day-nav-next">
+              <span className="day-nav-name">{nextDayOf.name}</span> <IconChevronRight size={18} />
+            </a>
+          ) : (
+            <span />
+          )}
+        </nav>
+      )}
+
+      {!focusDay && (
+        <button
+          type="button"
+          className="note-add"
+          onClick={() => {
+            const day: ProgrammeDay = { id: newId(), name: `Day ${programme.days.length + 1}`, exercises: [], notes: '' };
+            void save({ ...programme, days: [...programme.days, day] }, 'Added day').then(() => navigate(`/note/${encodeURIComponent(programme.id)}/${encodeURIComponent(day.id)}?edit=text`));
+          }}
+        >
+          <IconPlus /> Add day
+        </button>
+      )}
 
       {offer && (
         <div className="toast toast-offer" role="status" data-testid="same-answer">
@@ -431,7 +478,11 @@ function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId:
           onConfirm={() => {
             const day = programme.days.find((d) => d.id === confirm.dayId);
             setConfirm(null);
-            if (day) void save({ ...programme, days: programme.days.filter((d) => d.id !== day.id) }, `Deleted ${day.name}`).then(() => setRemoved(day.name));
+            if (day)
+              void save({ ...programme, days: programme.days.filter((d) => d.id !== day.id) }, `Deleted ${day.name}`).then(() => {
+                announce(`${day.name} deleted. Undo is on the note.`);
+                navigate(`/note/${encodeURIComponent(programme.id)}`);
+              });
           }}
         >
           <p>Its exercises are removed from this note. Past workouts stay in your history, and you can undo this.</p>
@@ -450,6 +501,48 @@ function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId:
     await startDay({ programme, day, planKind: 'programme-day', history: data.sessions, profile: data.profile, checkIn: null });
     navigate('/workout');
   }
+}
+
+/** The note's days: tap one to see (and edit) only that day. */
+function DayList({ programme, dayHref }: { programme: Programme; dayHref: (d: ProgrammeDay) => string }) {
+  const target = useTodayTarget(programme);
+  if (!programme.days.length) return null;
+  return (
+    <>
+      <p className="small muted">Tap a day to see and edit its exercises.</p>
+      <ol className="day-list" aria-label="Days">
+        {programme.days.map((d) => {
+          const n = d.exercises.length;
+          const toCheck = d.exercises.filter((x) => x.uncertain.some((f) => f !== 'sets' && f !== 'reps')).length;
+          const names = d.exercises.slice(0, 3).map((x) => x.name);
+          const tag = target?.day.id === d.id ? target.label : null;
+          return (
+            <li key={d.id}>
+              <a href={dayHref(d)} className="day-row" data-testid="day-row">
+                <span className="day-row-main">
+                  <span className="day-row-name">{d.name}</span>
+                  <span className="day-row-meta">
+                    {n === 0 ? 'No exercises yet' : `${n} exercise${n === 1 ? '' : 's'} · about ${estimateDayMinutes(d)} min`}
+                  </span>
+                  {names.length > 0 && (
+                    <span className="day-row-ex">
+                      {names.join(', ')}
+                      {n > names.length ? `, +${n - names.length} more` : ''}
+                    </span>
+                  )}
+                </span>
+                <span className="day-row-tags">
+                  {tag && <span className="pill pill-completed">{tag}</span>}
+                  {toCheck > 0 && <span className="pill pill-attention">{toCheck} to check</span>}
+                </span>
+                <IconChevronRight size={18} />
+              </a>
+            </li>
+          );
+        })}
+      </ol>
+    </>
+  );
 }
 
 function ToolButton({ label, onClick, disabled, children }: { label: string; onClick: () => void; disabled?: boolean; children: ReactNode }) {
@@ -508,7 +601,7 @@ function ExerciseLine({ ex, unit, onEdit, onPatch, onLoadType }: { ex: Programme
           {hold && (
             <button
               type="button"
-              className="btn btn-ghost btn-sm"
+              className="btn btn-tertiary btn-sm"
               aria-label={`Time ${hold}: start a ${hold} timer for ${ex.name}`}
               onClick={() => {
                 startHold(ex.name, ex.durationSec!);
@@ -521,7 +614,7 @@ function ExerciseLine({ ex, unit, onEdit, onPatch, onLoadType }: { ex: Programme
           {rest && (
             <button
               type="button"
-              className="btn btn-ghost btn-sm"
+              className="btn btn-tertiary btn-sm"
               aria-label={`Rest ${rest}: start the timer for ${ex.name}`}
               onClick={() => {
                 startRest(ex.name, ex.restSec);
@@ -532,7 +625,7 @@ function ExerciseLine({ ex, unit, onEdit, onPatch, onLoadType }: { ex: Programme
             </button>
           )}
           {canPlates && (
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPlates(true)} aria-label={`Plates for ${ex.name}`}>
+            <button type="button" className="btn btn-tertiary btn-sm" onClick={() => setPlates(true)} aria-label={`Plates for ${ex.name}`}>
               Plates
             </button>
           )}
@@ -672,7 +765,7 @@ function DayMenu({ programme, day, onClose, onEditText, onLive, onDelete, onCopy
           const copy = duplicateDay(day, newId);
           const days = [...programme.days];
           days.splice(idx + 1, 0, copy);
-          void save({ ...programme, days }, 'Duplicated day');
+          void save({ ...programme, days }, 'Duplicated day').then(() => navigate(`/note/${encodeURIComponent(programme.id)}/${encodeURIComponent(copy.id)}`));
         })}
         {item('Move day up', () => move(-1), { disabled: idx === 0 })}
         {item('Move day down', () => move(1), { disabled: idx === programme.days.length - 1 })}

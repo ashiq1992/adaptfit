@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.9.0 — 2026-11-11 — "One day at a time"
+
+### Changed
+- **A workout note opens as a list of its days.** Each day shows its name, how many exercises, about how long, the first few exercises, a **Today**/**Next** tag, and how many questions are waiting (“2 to check”). Tap a day to see only that day. Editing (one exercise, or the whole day as text) only ever touches that day, so another day can't be changed by accident.
+- **A day is its own page:** its name is the title (tap to rename), with “All days” to go back, the day's options in ⋯, and links to the previous and next day at the bottom.
+- Plan's Today card opens that day directly. Importing a one-day note opens that day; several days open the list. **Add day** opens the new day ready to type. Deleting a day returns to the list. Unsaved typing in a day is reopened on that day, even when the note is opened at its list.
+
+### Fixed (from the UI bugs folder)
+- **Back looked broken on the first question** of Recommend a programme (greyed out). It now takes you back to Programmes.
+- **Save waist touched the fields above it** on iPhone. Safari doesn't space the contents of fold-out cards like other browsers; every fold-out card now spaces its contents the same way everywhere (Waist, Bodyweight, Short on time, programme days).
+- **Fuel targets were misaligned** when a long label wrapped (“Carbohydrates (g, optional)”) and repeated words (“Protein from (g)”, “Protein to (g)”). Now: **Calories per day**, **Protein per day (g)** as one from–to pair, and **Carbs and fat (optional)** side by side. Boxes in a row always line up, on every form.
+- **One button looked like a button and the next like plain text** (“AdaptFit Fuel” and “Sleep and work schedule” on Coach). Every labelled button now has an outline or fill; borderless style is only for icon buttons. Changed in 18 places, including Recalculate carbs and fat, Cancel in editors, Undo, Rest and Plates, Skip, Postpone.
+- The day-name title was a 38 px touch target; now 44 px.
+- Moving to a new screen no longer takes the cursor out of a text box that screen opened (it closed the restored editor).
+
+### Tests
+- 9 browser tests: the day list and one-day page (edits stay in the day, previous/next, questions count, Today from Plan, Add day, delete day, restored and saved typing), and one per bug (Back enabled on question 1; space above Save waist; Fuel rows level; Coach links both drawn as buttons; no borderless labelled button on any main screen). Earlier tests updated for the day-by-day note.
+
 ## 0.8.0 — 2026-11-11 — "Your rest, your way"
 
 ### Changed

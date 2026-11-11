@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { addDays } from '../../domain/dates';
-import { nextDay } from '../../domain/programme';
 import { performanceText, prescription } from '../../domain/noteFormat';
 import { weekStartOf } from '../../domain/progression';
 import type { Programme, ProgrammeExercise, TrainingWeek } from '../../domain/types';
@@ -10,6 +9,7 @@ import { IconCheck, IconChevronRight, IconNotes, IconPlus, Wordmark } from '../.
 import { ScreenHeader } from '../../ui/ScreenHeader';
 import { dayDate } from '../format';
 import { createBlankNote } from '../notes/actions';
+import { useTodayTarget } from './todayTarget';
 import { WeekSummary } from './WeekSummary';
 
 const PREVIEW_COUNT = 3;
@@ -49,16 +49,9 @@ function PlanLink({ href, label }: { href: string; label: string }) {
 
 /** Today's (or the next) planned session, shown like the top of a notebook page. */
 function Today({ programme }: { programme: Programme }) {
-  const { data, today } = useApp();
-  const weekStart = weekStartOf(today);
+  const { data } = useApp();
   const unit = data.profile.weightUnit;
-  const target = useMemo(() => {
-    const slots = plannedSlots(programme, data.weekPlans, weekStart);
-    const todays = slots.map((s, i) => ({ s, date: suggestedDate(programme, programme.days.find((d) => d.id === s.dayId)!.name, i, weekStart) })).find((x) => x.date === today);
-    if (todays) return { day: programme.days.find((d) => d.id === todays.s.dayId)!, label: 'Today' };
-    const next = nextDay(programme, data.sessions);
-    return next ? { day: next, label: 'Next' } : null;
-  }, [programme, data.weekPlans, data.sessions, weekStart, today]);
+  const target = useTodayTarget(programme);
   if (!target) return null;
   const href = `#/note/${encodeURIComponent(programme.id)}/${encodeURIComponent(target.day.id)}`;
   const shown = target.day.exercises.slice(0, PREVIEW_COUNT);

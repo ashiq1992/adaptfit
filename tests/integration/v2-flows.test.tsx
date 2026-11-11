@@ -183,7 +183,7 @@ describe('Integration (V0.2 flows in the V0.4 UI)', () => {
     s = W.completeSet(W.updateSetValues(s, ex.key, ex.sets[0]!.id, { load: 32.5 }, new Date()), ex.key, ex.sets[0]!.id, new Date());
     s = W.setPosition(s, 1, new Date());
     await db.sessions.put(s);
-    window.location.hash = `#/note/${p.id}`;
+    window.location.hash = `#/note/${p.id}/${p.days[0]!.id}`;
     render(<App />);
     // Starting live logging again resumes the unfinished one instead of creating a second.
     const buttons = await screen.findAllByRole('button', { name: 'Log live' });

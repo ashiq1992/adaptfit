@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
-import { onboard, openNote, openThisWeek, seed, watchForErrors } from './helpers';
+import { onboard, openDay, openNote, openNoteDays, openThisWeek, seed, watchForErrors } from './helpers';
 
 /**
  * V0.4 journeys in a real browser (Chromium), with SYNTHETIC data.
@@ -23,16 +23,24 @@ test.describe('Notes-first workout view', () => {
     const errors = watchForErrors(page);
     await seed(page, info);
     const m = meter(page);
+    const todays = (await page.getByTestId('today-card').innerText()).trim();
     await m.tap(() => page.getByTestId('today-card').click());
     await expect(page.locator('.note-day').first()).toBeVisible();
+    // Opens on that day only: its name is the page title, other days are one tap away.
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(todays);
+    await expect(page.locator('.note-day')).toHaveCount(1);
+    await expect(page.getByRole('link', { name: 'All days' })).toBeVisible();
+    await page.getByRole('link', { name: 'All days' }).click();
+    await expect(page.getByTestId('day-row').nth(1)).toBeVisible();
+    await page.getByTestId('day-row').filter({ hasText: 'Upper Body A' }).click();
     const first = page.locator('.note-day').first();
-    await expect(first.getByRole('heading', { level: 2 })).toHaveText('Upper Body A');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Upper Body A');
     await expect(first.locator('.note-ex-name').first()).toHaveText('Smith machine bench press');
     await expect(first.locator('.note-ex-pres').first()).toHaveText('3 sets × 6–10 reps');
     // No Start or Finish workout is needed to follow it.
     await expect(page.getByRole('button', { name: /Start workout|Finish/ })).toHaveCount(0);
     info.annotations.push({ type: 'Target A', description: JSON.stringify(m.report()) });
-    expect(m.report().taps).toBe(1);
+    expect(m.report().taps).toBe(1); // today's day: one tap from Plan
     expect(errors).toEqual([]);
   });
 
@@ -87,7 +95,7 @@ test.describe('Notes-first workout view', () => {
     await page.locator('.toast').getByRole('button', { name: 'Undo' }).click();
     await expect(day.locator('.note-ex-name', { hasText: 'Face pull' })).toHaveCount(1);
     // Edit a whole day as text: unrecognised lines are kept.
-    await day.getByRole('button', { name: /^Options for/ }).click();
+    await page.getByRole('button', { name: /^Options for/ }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Edit as text' }).click();
     const text = page.locator('.note-textarea');
     await text.fill(`${await text.inputValue()}\n\nBring chalk!`);
@@ -97,13 +105,13 @@ test.describe('Notes-first workout view', () => {
 
   test('T08 deleting a note requires confirmation', async ({ page }, info) => {
     await seed(page, info);
-    await openNote(page);
+    await openNoteDays(page);
     await page.getByRole('button', { name: 'Note options' }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Delete note…' }).click();
     const confirm = page.getByRole('dialog');
     await expect(confirm).toContainText('Recorded workouts and weekly history stay');
     await confirm.getByRole('button', { name: 'Cancel' }).click();
-    await expect(page.locator('.note-day').first()).toBeVisible();
+    await expect(page.getByTestId('day-row').first()).toBeVisible();
     await page.getByRole('button', { name: 'Note options' }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Delete note…' }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Delete note' }).click();
@@ -225,7 +233,11 @@ test.describe('Import from Notes', () => {
     await preview.getByRole('group', { name: /Which exercise is “Squat”/ }).getByRole('button', { name: 'Smith machine squat' }).click();
     await expect(page.getByTestId('import-save')).toBeEnabled();
     await page.getByTestId('import-save').click();
-    await expect(page.locator('.note-day')).toHaveCount(2);
+    // Two days: the note opens on its list of days; each day opens on its own.
+    await expect(page.getByTestId('day-row')).toHaveCount(2);
+    await expect(page.getByTestId('day-row').nth(1)).toContainText('Saturday Lower');
+    await openDay(page, 'Tuesday Upper');
+    await expect(page.locator('.note-day')).toHaveCount(1);
     await expect(page.locator('.note-ex-name').first()).toHaveText('Smith machine bench press');
     await expect(page.locator('.note-ex-pres').first()).toHaveText('3 sets × 7–8 reps — 30 kg/side');
     await expect(page.locator('.note-ex-notes').first()).toHaveCount(1);
@@ -269,7 +281,9 @@ test.describe('Programmes, coaching and regression', () => {
     await expect(page.getByRole('heading', { name: 'Preview and customise' })).toBeVisible();
     await page.getByRole('button', { name: 'Save as workout note' }).click();
     await page.getByTestId('open-note').click();
-    await expect(page.locator('.note-day').first()).toBeVisible();
+    await expect(page.getByTestId('day-row').first()).toBeVisible();
+    await openDay(page);
+    await expect(page.locator('.note-ex').first()).toBeVisible();
     await page.goto('/#/plan');
     await expect(page.getByTestId('today-card')).toBeVisible();
   });
@@ -298,7 +312,7 @@ test.describe('Programmes, coaching and regression', () => {
     await expect(editor).toBeFocused();
     await editor.fill('Monday — Push\n\nBench press 60kg 3x8\nIncline DB press 22kg each 3x10');
     await page.getByRole('button', { name: 'Done' }).click();
-    await expect(page.locator('.note-day h2')).toHaveText('Monday — Push');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Monday — Push');
     await expect(page.locator('.note-ex-name')).toHaveCount(2);
     await page.goto('/#/plan');
     await expect(page.getByTestId('today-card')).toContainText('Monday — Push');

@@ -188,7 +188,7 @@ export function GuidedProgramme() {
 
       {qIndex >= 0 && (
         <div className="row">
-          <button type="button" className="btn btn-tertiary" disabled={qIndex === 0} onClick={() => go(QUESTIONS[qIndex - 1]!)}>
+          <button type="button" className="btn btn-tertiary" onClick={() => (qIndex === 0 ? navigate('/library') : go(QUESTIONS[qIndex - 1]!))}>
             Back
           </button>
           <button type="button" className="btn btn-primary btn-grow btn-lg" onClick={() => go(qIndex === QUESTIONS.length - 1 ? 'results' : QUESTIONS[qIndex + 1]!)}>
@@ -217,7 +217,7 @@ export function GuidedProgramme() {
             <button type="button" className="btn btn-tertiary btn-grow" onClick={() => setCompare((v) => !v)} aria-pressed={compare}>
               {compare ? 'Show top matches' : `Compare all ${results.length} templates`}
             </button>
-            <button type="button" className="btn btn-ghost btn-grow" onClick={() => go('goal')}>
+            <button type="button" className="btn btn-tertiary btn-grow" onClick={() => go('goal')}>
               Change answers
             </button>
           </div>
@@ -266,7 +266,7 @@ export function GuidedProgramme() {
             <button type="button" className="btn btn-primary btn-lg btn-block" onClick={save}>
               Save as workout note
             </button>
-            <button type="button" className="btn btn-ghost btn-block" onClick={() => go('results')}>
+            <button type="button" className="btn btn-tertiary btn-block" onClick={() => go('results')}>
               Back to recommendations
             </button>
             <p className="xs muted">You can edit everything later directly in the note. Past workouts are never changed.</p>

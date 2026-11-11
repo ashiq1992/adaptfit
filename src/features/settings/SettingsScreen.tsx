@@ -498,7 +498,7 @@ function PrivacySection() {
         ))}
       </ul>
       {counting && <UsageCountSwitch />}
-      <p className="xs faint">AdaptFit V0.8 · Intelligent Workout Notebook</p>
+      <p className="xs faint">AdaptFit V0.9 · Intelligent Workout Notebook</p>
       <a href="#/admin" className="btn btn-secondary">
         Admin: this device’s storage and usage
       </a>

@@ -297,10 +297,10 @@ function DayEditor({ day, index, count, onChange, onDuplicate, onDelete, onMove 
           <button type="button" className="btn btn-tertiary btn-sm" onClick={onDuplicate}>
             Duplicate day
           </button>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={index === 0} onClick={() => onMove(-1)}>
+          <button type="button" className="btn btn-tertiary btn-sm" disabled={index === 0} onClick={() => onMove(-1)}>
             Move up
           </button>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={index === count - 1} onClick={() => onMove(1)}>
+          <button type="button" className="btn btn-tertiary btn-sm" disabled={index === count - 1} onClick={() => onMove(1)}>
             Move down
           </button>
           <button type="button" className="btn btn-danger-outline btn-sm" disabled={count === 1} onClick={onDelete}>

@@ -10,7 +10,7 @@
 
 No account, no cloud, no tracking, no AI service: everything stays in this browser on this device.
 
-Version **0.8.0** (rest in the note text with a 1:30 default, rest for every exercise at once, a countdown for timed exercises, steadier editing on phones; rest timer, plate calculator, new-best highlights, weekly summary; share a week as text, “same for all” answers, Paste and Android Share-menu import; "Ink & Paper": warm paper, black ink for the plan, blue ink for what you did, a highlighter for progress; Night theme in Settings → Appearance). See [`docs/CHANGELOG.md`](docs/CHANGELOG.md) and the brand board [`docs/brand/ink-and-paper.html`](docs/brand/ink-and-paper.html).
+Version **0.9.0** (a workout note opens as a list of days, one day at a time; rest in the note text with a 1:30 default, rest for every exercise at once, a countdown for timed exercises, steadier editing on phones; rest timer, plate calculator, new-best highlights, weekly summary; share a week as text, “same for all” answers, Paste and Android Share-menu import; "Ink & Paper": warm paper, black ink for the plan, blue ink for what you did, a highlighter for progress; Night theme in Settings → Appearance). See [`docs/CHANGELOG.md`](docs/CHANGELOG.md) and the brand board [`docs/brand/ink-and-paper.html`](docs/brand/ink-and-paper.html).
 
 ## ⚠️ Before upgrading — back up first
 

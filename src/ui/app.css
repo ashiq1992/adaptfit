@@ -537,7 +537,13 @@ button, input, select, textarea {
 /* A file input hidden inside a button-styled label still shows the focus ring. */
 .file-btn:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
 .input-num { font-family: var(--font-num); font-variant-numeric: tabular-nums; text-align: center; font-weight: 500; }
-.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: var(--space-3); }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: var(--space-3); align-items: end; }
+/* A from–to pair under one label ("Protein per day (g): 125 to 155"). */
+fieldset.field { border: 0; margin: 0; padding: 0; min-width: 0; }
+fieldset.field > legend { margin-bottom: var(--space-2); }
+.range-inputs { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--space-3); }
+.range-sep { color: var(--text-2); font-size: var(--fs-sm); }
+.align-start { align-self: flex-start; }
 .choices { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .choices-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
 .choice { position: relative; display: flex; cursor: pointer; }
@@ -1143,7 +1149,7 @@ button, input, select, textarea {
 
 /* ── Workout note: a ruled page with a margin ─────────────── */
 
-.note-title { all: unset; cursor: text; border-radius: 6px; }
+.note-title { all: unset; cursor: text; border-radius: 6px; display: inline-flex; align-items: center; min-height: var(--touch); }
 .note-title:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .note-day {
   position: relative;
@@ -1282,6 +1288,10 @@ button, input, select, textarea {
 .milestones { display: flex; flex-direction: column; gap: var(--space-2); }
 .milestones li { display: grid; gap: 1px; padding-bottom: var(--space-2); border-bottom: 1px solid var(--rule); }
 .milestones li:last-child { border-bottom: 0; }
+/* Safari doesn't lay out <details> contents as flex items, so the card's gap is
+   lost there (buttons touching the fields above). Space them the same way everywhere. */
+details.card { display: block; }
+details.card > * + * { margin-top: var(--space-3); }
 details.card > summary { list-style: none; cursor: pointer; min-height: var(--touch); display: flex; align-items: center; }
 details.card > summary::-webkit-details-marker { display: none; }
 /* The same chevron as IconChevronDown (Settings rows), drawn as a mask so it takes the text colour. */
@@ -1339,3 +1349,25 @@ details.card:not([open]) { padding-top: var(--space-2); padding-bottom: var(--sp
 .week-summary .row.between { align-items: center; margin-top: calc(-1 * var(--space-2)); }
 .week-summary-lines { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; font-size: var(--fs-sm); }
 .week-summary-lines .pill { margin-right: 4px; }
+
+/* ── Note: list of days, one day at a time ───────────────── */
+.day-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.day-row {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); min-height: 64px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  color: var(--text); text-decoration: none;
+}
+.day-row:hover { border-color: var(--border-strong); }
+.day-row:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.day-row-main { display: grid; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.day-row-name { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.day-row-meta { font-size: var(--fs-xs); color: var(--text-2); }
+.day-row-ex { font-size: var(--fs-sm); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.day-row-tags { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); flex: none; }
+.day-row > svg { flex: none; color: var(--text-2); }
+.day-nav { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-top: var(--space-4); }
+.day-nav .btn { min-width: 0; }
+.day-nav-next { justify-self: end; }
+.day-nav-prev { justify-self: start; }
+.day-nav-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }

@@ -1,7 +1,7 @@
 import { EXERCISES_BY_ID } from '../content/exercises';
 import { trim } from './loads';
 import { type NoteEntry, parseNote, type ParseContext, parseValues, performanceSets, resolveEntry, splitNameAndValues } from './noteParser';
-import { programmeExercise } from './programme';
+import { DEFAULT_REST_SEC, programmeExercise } from './programme';
 import type { CustomExercise, ExercisePerformance, LoadType, NoteField, PerformanceSet, Programme, ProgrammeDay, ProgrammeExercise, WeightUnit } from './types';
 
 type IdFn = () => string;
@@ -54,9 +54,29 @@ export function prescription(pe: ProgrammeExercise, unitFallback: WeightUnit): s
   return [sr, load].filter(Boolean).join(' — ');
 }
 
-/** Editable text for one exercise: name, values line, then any notes. */
+/** "Rest 1:30", "Rest 2 min", "Rest 45 s", "No rest": always written, so it can be changed in the text. */
+export function restText(sec: number): string {
+  if (sec <= 0) return 'No rest';
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  if (!m) return `Rest ${s} s`;
+  return s ? `Rest ${m}:${String(s).padStart(2, '0')}` : `Rest ${m} min`;
+}
+
+const clampRest = (sec: number) => Math.min(900, Math.max(0, Math.round(sec)));
+
+/** Seconds from a line that only states rest ("Rest 1:30", "rest 2 min", "No rest"); null otherwise. */
+export function restLineSeconds(line: string): number | null {
+  const t = line.trim();
+  if (!/^(?:rest\b|no\s+rest\b)/i.test(t)) return null;
+  const v = parseValues(t);
+  if (v.restSec === null || v.sets !== null || v.load !== null || v.reps.length || v.durationSec !== null) return null;
+  return clampRest(v.restSec);
+}
+
+/** Editable text for one exercise: name, values line, rest, then any notes. */
 export function exerciseText(pe: ProgrammeExercise, unit: WeightUnit): string {
-  return [pe.name, prescription(pe, unit), pe.notes].filter((x) => x.trim()).join('\n');
+  return [pe.name, prescription(pe, unit), restText(pe.restSec), pe.notes].filter((x) => x.trim()).join('\n');
 }
 
 /** Editable text for a whole day. */
@@ -160,7 +180,7 @@ export function entryToExercise(entry: NoteEntry, ctx: ConvertContext, previous?
     repMin: timed ? null : repMin,
     repMax: timed ? null : repMax,
     durationSec,
-    restSec: v?.restSec ?? base.restSec,
+    restSec: v?.restSec != null ? clampRest(v.restSec) : base.restSec,
     notes: entry.comments.join('\n').slice(0, 5000),
     plannedLoad,
     uncertain: [...uncertain],
@@ -179,25 +199,33 @@ export function parseExerciseBlock(text: string, ctx: ConvertContext, previous?:
   let name = lines[0]!;
   const valueParts: string[] = [];
   const comments: string[] = [];
+  let restSec: number | null = null;
   if (split && parseValues(split.values).understood) {
     name = split.name;
     valueParts.push(split.values);
   }
   for (const l of lines.slice(1)) {
+    const r: number | null = restSec === null ? restLineSeconds(l) : null;
+    if (r !== null) {
+      restSec = r;
+      continue;
+    }
     const pv = parseValues(l);
     if (/^(\d|x\s*\d|×|@|bw\b|bodyweight\b|assist)/i.test(l) && pv.understood && valueParts.length === 0) valueParts.push(l);
     else comments.push(l);
   }
   const values = valueParts.length ? parseValues(valueParts.join(' ')) : null;
+  // Rest is always shown in the text: what is written is what the timer uses (none written → the default).
+  const rest = restSec ?? (values?.restSec != null ? clampRest(values.restSec) : DEFAULT_REST_SEC);
   const resolved = resolveEntry(name, values, { ...ctx, knownLoadType: (id) => (previous && previous.exerciseId === id ? previous.loadType : (ctx.knownLoadType?.(id) ?? null)) });
   // Keep an existing link when the user only changed values (or the name still means the same exercise).
   const keepId = previous && (resolved.exerciseId === previous.exerciseId || (!resolved.exerciseId && name.toLowerCase() === previous.name.toLowerCase()));
   const entry: NoteEntry = { ...resolved, exerciseId: keepId ? previous!.exerciseId : resolved.exerciseId, lineNos: [], raw: lines, comments };
   if (!values && previous) {
     // Only the name or notes changed: keep the existing numbers.
-    return { ...entryToExercise({ ...entry, values: null }, ctx, previous), sets: previous.sets, repMin: previous.repMin, repMax: previous.repMax, durationSec: previous.durationSec, plannedLoad: previous.plannedLoad, loadType: previous.exerciseId === entry.exerciseId ? previous.loadType : entry.loadType ?? 'unspecified', uncertain: previous.uncertain.filter((u) => u !== 'exercise') };
+    return { ...entryToExercise({ ...entry, values: null }, ctx, previous), restSec: rest, sets: previous.sets, repMin: previous.repMin, repMax: previous.repMax, durationSec: previous.durationSec, plannedLoad: previous.plannedLoad, loadType: previous.exerciseId === entry.exerciseId ? previous.loadType : entry.loadType ?? 'unspecified', uncertain: previous.uncertain.filter((u) => u !== 'exercise') };
   }
-  return entryToExercise(entry, ctx, previous);
+  return { ...entryToExercise(entry, ctx, previous), restSec: rest };
 }
 
 /**
@@ -211,7 +239,9 @@ export function parseDayText(text: string, previous: ProgrammeDay, ctx: ConvertC
   const exercises = (d?.entries ?? []).map((entry) => {
     const idx = unused.findIndex((e) => (entry.exerciseId && e.exerciseId === entry.exerciseId) || e.name.toLowerCase() === entry.name.toLowerCase());
     const prev = idx >= 0 ? unused.splice(idx, 1)[0] : undefined;
-    return entryToExercise({ ...entry, exerciseId: prev && !entry.exerciseId ? prev.exerciseId : entry.exerciseId }, ctx, prev);
+    const ex = entryToExercise({ ...entry, exerciseId: prev && !entry.exerciseId ? prev.exerciseId : entry.exerciseId }, ctx, prev);
+    // The day text shows every exercise's rest: a deleted rest line means the default.
+    return { ...ex, restSec: entry.values?.restSec != null ? clampRest(entry.values.restSec) : DEFAULT_REST_SEC };
   });
   const notes = [...parsed.preamble, ...(d?.notes ?? [])].join('\n');
   return { ...previous, name: (d?.heading ?? previous.name).slice(0, 200) || previous.name, exercises, notes: notes.slice(0, 5000) };

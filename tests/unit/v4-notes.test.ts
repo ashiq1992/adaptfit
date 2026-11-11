@@ -117,7 +117,7 @@ describe('Workout notes: display and inline editing', () => {
     const plank = programmeExercise(newIdFn, { exerciseId: 'plank', sets: 3, durationSec: 45 });
     expect(prescription(plank, 'kg')).toBe('3 sets × 45 s');
     const day: ProgrammeDay = { id: 'd', name: 'Tuesday — Upper body', exercises: [bench()], notes: 'Warm up first' };
-    expect(dayText(day, 'kg')).toBe('Tuesday — Upper body\n\nSmith machine bench press\n3 sets × 8 reps — 30 kg/side\n\nWarm up first');
+    expect(dayText(day, 'kg')).toBe('Tuesday — Upper body\n\nSmith machine bench press\n3 sets × 8 reps — 30 kg/side\nRest 1:30\n\nWarm up first');
   });
 
   it('T03 inline editing updates the correct exercise and keeps its identity', () => {

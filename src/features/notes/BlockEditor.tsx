@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
-import { keepInView, useAutoGrow } from '../../ui/autoGrow';
+import { caretAtEnd, keepInView, useAutoGrow, useKeyboardSpace } from '../../ui/autoGrow';
 
 const DRAFT_PREFIX = 'adaptfit:draft:';
 
@@ -73,6 +73,7 @@ export function BlockEditor({
   const done = useRef(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
   useAutoGrow(ref, text, !single);
+  useKeyboardSpace();
 
   useEffect(() => {
     textRef.current = text;
@@ -84,10 +85,15 @@ export function BlockEditor({
     el.focus({ preventScroll: true });
     const len = el.value.length;
     el.setSelectionRange?.(len, len);
-    // Bring the whole editor, Done included, into view; again once the keyboard has opened.
+    // Bring the end of the text and Done into view; again once the keyboard has
+    // opened. Only right after opening: later the user scrolls where they want to
+    // edit, and the screen must not be pulled back down.
     keepInView(toolbarRef.current);
     const vv = window.visualViewport;
-    const onResize = () => keepInView(toolbarRef.current);
+    const opened = Date.now();
+    const onResize = () => {
+      if (Date.now() - opened < 1500 && caretAtEnd(ref.current)) keepInView(toolbarRef.current);
+    };
     vv?.addEventListener('resize', onResize);
     return () => vv?.removeEventListener('resize', onResize);
   }, []);
@@ -133,8 +139,9 @@ export function BlockEditor({
     onChange: (e: { target: { value: string } }) => {
       setText(e.target.value);
       writeDraft(draftKey, e.target.value);
-      // Typing at the end grows the box downwards: keep Done above the keyboard.
-      requestAnimationFrame(() => keepInView(toolbarRef.current));
+      // Typing at the very end grows the box downwards: keep Done above the
+      // keyboard. Typing anywhere else leaves the screen where the user put it.
+      if (caretAtEnd(ref.current)) requestAnimationFrame(() => keepInView(toolbarRef.current));
     },
     onKeyDown: (e: { key: string; metaKey: boolean; ctrlKey: boolean; preventDefault: () => void }) => {
       if (e.key === 'Escape') {

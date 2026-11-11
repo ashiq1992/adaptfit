@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { silenceAlarm, unlockSound } from './timerAlarm';
 
 /**
  * App-wide rest timer started from a note ("Rest: 2 min"). It stores the end
@@ -9,6 +10,8 @@ export interface RestTimer {
   label: string;
   endsAt: number;
   totalSec: number;
+  /** "rest" between sets, or "hold" for a timed exercise (plank 30 s). Missing on older saved timers = rest. */
+  kind?: 'rest' | 'hold';
 }
 
 const KEY = 'adaptfit:rest-timer';
@@ -52,14 +55,22 @@ export function useRestTimer(): RestTimer | null {
 
 export function startRest(label: string, seconds: number, now = Date.now()): void {
   unlockSound();
-  set({ label, totalSec: seconds, endsAt: now + seconds * 1000 });
+  set({ label, totalSec: seconds, endsAt: now + seconds * 1000, kind: 'rest' });
+}
+
+/** Countdown for a timed exercise (a plank, a hold): same bar, its own wording. */
+export function startHold(label: string, seconds: number, now = Date.now()): void {
+  unlockSound();
+  set({ label, totalSec: seconds, endsAt: now + seconds * 1000, kind: 'hold' });
 }
 
 export function addRest(seconds: number): void {
+  silenceAlarm();
   if (current) set({ ...current, endsAt: Math.max(current.endsAt, Date.now()) + seconds * 1000, totalSec: current.totalSec + seconds });
 }
 
 export function stopRest(): void {
+  silenceAlarm();
   set(null);
 }
 
@@ -75,42 +86,23 @@ export function restLabel(sec: number): string {
   return s ? `${m} min ${s} s` : `${m} min`;
 }
 
-// ── End-of-rest signal ────────────────────────────────────────────────────
-// iOS only plays Web Audio started from a tap, so the context is created when
-// the timer is started (a tap) and reused for the beep.
-let audio: AudioContext | null = null;
+// ── Keep the screen on while counting ─────────────────────────────────────
+// A locked phone pauses the page, so the beep could not play. While a timer is
+// running the app asks the browser to keep the screen awake (Screen Wake Lock,
+// where supported); it lets go when the timer ends or is stopped.
+type Sentinel = { release: () => Promise<void>; released?: boolean };
+let lock: Sentinel | null = null;
 
-function unlockSound() {
+export async function keepAwake(on: boolean): Promise<void> {
+  const wl = (navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<Sentinel> } }).wakeLock;
   try {
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!audio && Ctx) audio = new Ctx();
-    void audio?.resume();
-  } catch {
-    audio = null;
-  }
-}
-
-export function signalRestOver(): void {
-  try {
-    navigator.vibrate?.([200, 100, 200]);
-  } catch {
-    /* not supported (iPhone) */
-  }
-  try {
-    if (!audio) return;
-    const t0 = audio.currentTime;
-    for (const [i, f] of [880, 1175].entries()) {
-      const osc = audio.createOscillator();
-      const gain = audio.createGain();
-      osc.frequency.value = f;
-      gain.gain.setValueAtTime(0.0001, t0 + i * 0.22);
-      gain.gain.exponentialRampToValueAtTime(0.25, t0 + i * 0.22 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + i * 0.22 + 0.2);
-      osc.connect(gain).connect(audio.destination);
-      osc.start(t0 + i * 0.22);
-      osc.stop(t0 + i * 0.22 + 0.21);
+    if (on && wl && (!lock || lock.released) && document.visibilityState === 'visible') lock = await wl.request('screen');
+    else if (!on && lock) {
+      const l = lock;
+      lock = null;
+      await l.release();
     }
   } catch {
-    /* sound unavailable */
+    /* not allowed (battery saver, unsupported): the timer still works */
   }
 }

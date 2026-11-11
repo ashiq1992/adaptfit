@@ -146,9 +146,9 @@ button, input, select, textarea {
 .app {
   min-height: 100vh;
   min-height: 100dvh;
-  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--space-6) + var(--rest-h, 0px));
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--space-6) + var(--rest-h, 0px) + var(--kb, 0px));
 }
-.app-focused { padding-bottom: calc(120px + env(safe-area-inset-bottom)); }
+.app-focused { padding-bottom: calc(120px + env(safe-area-inset-bottom) + var(--kb, 0px)); }
 .app-loading {
   display: grid;
   place-items: center;
@@ -1070,6 +1070,8 @@ button, input, select, textarea {
 .rest-bar-time { font-family: var(--font-num); font-size: var(--fs-xl); font-weight: 500; font-variant-numeric: tabular-nums; }
 .rest-bar .btn { position: relative; min-height: var(--touch); background: transparent; border: 1px solid var(--on-ink); color: var(--on-ink); }
 .rest-bar.is-done { background: var(--attention); }
+@keyframes rest-ring { 0%, 100% { filter: none; } 50% { filter: brightness(1.25); } }
+@media (prefers-reduced-motion: no-preference) { .rest-bar.is-ringing { animation: rest-ring 0.8s ease-in-out infinite; } }
 @media (prefers-reduced-motion: no-preference) { .rest-bar-fill { transition: transform 250ms linear; } }
 .menu { display: flex; flex-direction: column; }
 .menu-item { min-height: 48px; padding: 0 var(--space-2); text-align: left; background: none; border: 0; border-bottom: 1px solid var(--rule); color: var(--text); font-size: var(--fs-md); cursor: pointer; }

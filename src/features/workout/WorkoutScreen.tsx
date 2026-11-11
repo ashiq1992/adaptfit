@@ -12,6 +12,7 @@ import { ConfirmDialog, Dialog } from '../../ui/Dialog';
 import { navigate, useNow } from '../../ui/hooks';
 import { IconBack, IconCheck, IconMore, IconPause, IconPlay, IconPlus, IconTrash } from '../../ui/icons';
 import { clockTime, plural, repRange, restLabel, setLabel, shortDate } from '../format';
+import { silenceAlarm, timerAlarm } from '../../ui/timerAlarm';
 
 type SaveState = { status: 'idle' | 'saving' | 'saved' } | { status: 'error'; message: string; retry: () => Promise<boolean> };
 
@@ -427,9 +428,12 @@ function RestBanner({ session, onDismiss }: { session: WorkoutSession; onDismiss
   useEffect(() => {
     if (remaining === 0 && session.restStartedAt && announced.current !== session.restStartedAt) {
       announced.current = session.restStartedAt;
+      timerAlarm('Rest complete', 'Ready for your next set.');
       announce('Rest complete. Ready for your next set.');
     }
   }, [remaining, session.restStartedAt, announce]);
+  // Leaving the banner (dismissed, or the next set started) stops the alarm.
+  useEffect(() => () => silenceAlarm(), []);
   if (remaining === null) return null;
   const doneResting = remaining === 0;
   return (

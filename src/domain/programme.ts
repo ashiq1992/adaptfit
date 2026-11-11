@@ -5,6 +5,8 @@ type IdFn = () => string;
 
 export const WARMUP_SEC = 300;
 export const TRANSITION_SEC = 60;
+/** Rest between sets when the note doesn't say (1 min 30 s). */
+export const DEFAULT_REST_SEC = 90;
 /** Assumed seconds of work per rep, used only for time estimates. */
 export const SEC_PER_REP = 4;
 
@@ -24,7 +26,7 @@ export function programmeExercise(
     repMin: timed ? null : (args.repMin ?? 8),
     repMax: timed ? null : (args.repMax ?? 12),
     durationSec: timed ? (args.durationSec ?? lib?.defaultDurationSec ?? 60) : null,
-    restSec: args.restSec ?? 90,
+    restSec: args.restSec ?? DEFAULT_REST_SEC,
     priority: args.priority ?? false,
     notes: args.notes ?? '',
     plannedLoad: args.plannedLoad ?? null,

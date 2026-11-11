@@ -41,7 +41,7 @@ export default defineConfig({
       // Updates wait for the user to choose "Refresh" — never auto-reload mid-workout.
       registerType: 'prompt',
       injectRegister: false,
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'sw-timer.js'],
       manifest: {
         name: 'AdaptFit',
         short_name: 'AdaptFit',
@@ -68,6 +68,8 @@ export default defineConfig({
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
         runtimeCaching: [],
+        // Tapping a timer notification brings AdaptFit back to the front.
+        importScripts: ['sw-timer.js'],
       },
       devOptions: { enabled: false },
     }),

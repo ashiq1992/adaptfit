@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.8.0 — 2026-11-11 — "Your rest, your way"
+
+### Changed
+- **Rest is part of the note text.** Every exercise shows a rest line (“Rest 1:30”) when you edit it, alone or with the whole day. Change it to “Rest 2 min”, “Rest 45 s”, “Rest 1 min 30 s” or “No rest”, and the Rest button follows. Typed exercises start at **1 min 30 s**; deleting the line goes back to that default.
+- **Rest for every exercise at once:** note options → **Rest between sets…** (1 min, 1:30, 2 min, 3 min or no rest timer).
+- **Countdown for timed exercises.** Planks and other holds get **Time 30 s**, using the same bar (“Timer · Plank”, then “Time”).
+- **The screen stays on while a timer counts** (where the browser supports it), so the phone doesn’t lock before the beep.
+- **Timer alarm.** When a rest or hold timer ends, a loud beep pattern repeats (with vibration on Android) until you tap anywhere, for at most 30 s; the bar pulses and says “Tap to stop”. Live-logging rest now rings too (it was silent). **Settings → Training → Timer alarm**: sound, vibration, a 5-second test, and an optional **notification when AdaptFit is in the background** (Android; made on the phone by the app itself, nothing is sent anywhere). An iPhone pauses web apps in the background, and its silent switch mutes web-app sound.
+
+### Fixed
+- **Editing a long day on a phone.** Typing in the middle of the text no longer makes the screen jump (to the top, or down to Done). Measuring the growing text box briefly shortened the page; the page now holds still. The view only follows Done when you type at the very end. While the keyboard is open, space is added below the text, so the last lines can scroll above the keyboard.
+
+### Not built
+- A separate general-purpose timer or stopwatch. The phone’s Clock app does that better (it rings when the phone is locked; a web app can’t). The in-app timers cover the gym case: rest and timed holds, one tap from the exercise.
+
+### Tests
+- 6 unit tests (default rest, rest text round trip, ways of writing rest, per-exercise and whole-day edits, hold timer) and 3 browser tests (typing mid-text on a phone keeps the screen still: the old code jumped 565 px; rest changed per exercise, in the day text and for the whole note; plank countdown).
+
 ## 0.7.0 — 2026-11-09 — "At the gym"
 
 ### Added

@@ -172,7 +172,14 @@ export function parseValues(input: string): ParsedValues {
   }
 
   // ── Rest ("Rest: 2-3 min", "90 sec rest", "rest 1:30") and effort ("1 RIR", "RPE 8") ──
-  if ((m = new RegExp(`\\brest\\s*:?\\s*(\\d+(?:[.,]\\d+)?)(?:\\s*-\\s*(\\d+(?:[.,]\\d+)?))?\\s*${TIME_UNIT}`, 'i').exec(rest))) {
+  if ((m = /\bno rest\b|\brest\s*:?\s*(?:none|off)\b/i.exec(rest))) {
+    out.restSec = 0;
+    take(m);
+  } else if ((m = /\brest\s*:?\s*(\d{1,2})\s*m(?:in(?:ute)?s?)?\s*(\d{1,2})\s*s(?:ec(?:ond)?s?)?\b/i.exec(rest))) {
+    // "Rest 1 min 30 s", "rest 1m30s"
+    out.restSec = Number(m[1]) * 60 + Number(m[2]);
+    take(m);
+  } else if ((m = new RegExp(`\\brest\\s*:?\\s*(\\d+(?:[.,]\\d+)?)(?:\\s*-\\s*(\\d+(?:[.,]\\d+)?))?\\s*${TIME_UNIT}`, 'i').exec(rest))) {
     out.restSec = Math.round(secs(num(m[1]!), m[3]!));
     if (m[2]) out.notes.push(`Rest ${m[1]}–${m[2]} ${m[3]}`);
     take(m);
@@ -722,7 +729,7 @@ function hintedName(name: string, hints: readonly string[], custom: readonly Cus
 }
 
 /** Lines that only add detail to the exercise above: "Did 8 reps", "Rest: 2 min", "for 7 reps", "Set 2: 65x6", "warm-up 40x10". */
-const DETAIL_START = /^(did|done|got|managed|hit|for|at|rest|rir|rpe|x\s*\d|set\s*\d|s\d)\b/i;
+const DETAIL_START = /^(did|done|got|managed|hit|for|at|rest|no\s+rest|rir|rpe|x\s*\d|set\s*\d|s\d)\b/i;
 
 /** "SS", "Superset", "Giant set", "Circuit" at the start of a line. */
 const SUPERSET = /^(?:ss|super\s*set|giant\s*set|tri-?set|circuit)\b\s*(?:\d+\b)?\s*[:.\-–—]?\s*(.*)$/i;

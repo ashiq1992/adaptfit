@@ -20,7 +20,7 @@ import { CopyDialog } from '../../ui/CopyDialog';
 import { applySameAnswer, familyWord, sameAnswerOffer, type SameAnswerOffer } from '../../domain/clarify';
 import { recentBest } from '../../domain/bests';
 import { plateCalculable } from '../../domain/plates';
-import { restLabel, startRest } from '../../ui/restTimer';
+import { restLabel, startRest, startHold } from '../../ui/restTimer';
 import { PlatesDialog } from './PlatesDialog';
 
 type Editing =
@@ -106,6 +106,7 @@ function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId:
   const [menu, setMenu] = useState<'note' | { dayId: string } | null>(null);
   const [confirm, setConfirm] = useState<'delete-note' | { dayId: string } | null>(null);
   const [copyText, setCopyText] = useState<string | null>(null);
+  const [restAll, setRestAll] = useState(false);
   const revisions = useLive(() => countNoteRevisions(programme.id), [programme.id, programme.updatedAt]);
 
   // Scroll to the requested day (one tap from Plan to today's workout).
@@ -382,7 +383,17 @@ function NoteBody({ programme, focusDayId }: { programme: Programme; focusDayId:
         </div>
       )}
 
-      {menu === 'note' && <NoteMenu programme={programme} onClose={() => setMenu(null)} onEditTop={() => setEditing({ kind: 'preamble' })} onCopy={() => setCopyText(programmeText(programme, unit))} onDelete={() => setConfirm('delete-note')} save={save} />}
+      {menu === 'note' && <NoteMenu programme={programme} onClose={() => setMenu(null)} onEditTop={() => setEditing({ kind: 'preamble' })} onCopy={() => setCopyText(programmeText(programme, unit))} onRestAll={() => setRestAll(true)} onDelete={() => setConfirm('delete-note')} save={save} />}
+      {restAll && (
+        <RestAllDialog
+          programme={programme}
+          onClose={() => setRestAll(false)}
+          onPick={(sec) => {
+            setRestAll(false);
+            void save({ ...programme, days: programme.days.map((d) => ({ ...d, exercises: d.exercises.map((x) => ({ ...x, restSec: sec })) })) }, 'Changed rest').then(() => announce(sec ? `Rest set to ${restLabel(sec)} for every exercise.` : 'Rest timer turned off for every exercise.'));
+          }}
+        />
+      )}
       {menu && menu !== 'note' && (
         <DayMenu
           programme={programme}
@@ -466,6 +477,7 @@ function ExerciseLine({ ex, unit, onEdit, onPatch, onLoadType }: { ex: Programme
   const best = useMemo(() => recentBest(ex, data.sessions, today), [ex, data.sessions, today]);
   const canPlates = plateCalculable(ex);
   const rest = ex.restSec > 0 ? restLabel(ex.restSec) : null;
+  const hold = ex.loadType === 'timed' && ex.durationSec ? restLabel(ex.durationSec) : null;
   const pres = prescription(ex, unit);
   const last = useMemo(() => latestReference(ex, data.sessions, data.imports, '9999-12-31'), [ex, data.sessions, data.imports]);
   const lastText = last ? performanceText(last.sets, ex.loadType, last.unit === 'lb' ? 'lb' : 'kg') : null;
@@ -491,8 +503,21 @@ function ExerciseLine({ ex, unit, onEdit, onPatch, onLoadType }: { ex: Programme
           </span>
         )}
       </button>
-      {(rest || canPlates) && (
+      {(rest || canPlates || hold) && (
         <div className="note-ex-tools">
+          {hold && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              aria-label={`Time ${hold}: start a ${hold} timer for ${ex.name}`}
+              onClick={() => {
+                startHold(ex.name, ex.durationSec!);
+                announce(`Timer started: ${hold}.`);
+              }}
+            >
+              <IconClock size={16} /> Time {hold}
+            </button>
+          )}
           {rest && (
             <button
               type="button"
@@ -555,7 +580,29 @@ function ExerciseLine({ ex, unit, onEdit, onPatch, onLoadType }: { ex: Programme
   );
 }
 
-function NoteMenu({ programme, onClose, onEditTop, onCopy, onDelete, save }: { programme: Programme; onClose: () => void; onEditTop: () => void; onCopy: () => void; onDelete: () => void; save: (p: Programme, reason: string) => Promise<void> }) {
+const REST_CHOICES = [60, 90, 120, 180, 0];
+
+/** One rest time for every exercise in the note (each can still be changed in its text). */
+function RestAllDialog({ programme, onClose, onPick }: { programme: Programme; onClose: () => void; onPick: (sec: number) => void }) {
+  const all = programme.days.flatMap((d) => d.exercises.map((x) => x.restSec));
+  const same = all.length && all.every((r) => r === all[0]) ? all[0]! : null;
+  return (
+    <Dialog title="Rest between sets" onClose={onClose} actions={<button type="button" className="btn btn-tertiary btn-block" onClick={onClose}>Cancel</button>}>
+      <p className="small muted">Sets the rest timer for every exercise in this note. To change one exercise, tap it and edit its “Rest 1:30” line.</p>
+      <div className="menu" role="group" aria-label="Rest for every exercise">
+        {REST_CHOICES.map((sec) => (
+          <button key={sec} type="button" className="menu-item" aria-pressed={same === sec} onClick={() => onPick(sec)}>
+            {sec ? restLabel(sec) : 'No rest timer'}
+            {sec === 90 ? ' (default)' : ''}
+            {same === sec ? ' · current' : ''}
+          </button>
+        ))}
+      </div>
+    </Dialog>
+  );
+}
+
+function NoteMenu({ programme, onClose, onEditTop, onCopy, onRestAll, onDelete, save }: { programme: Programme; onClose: () => void; onEditTop: () => void; onCopy: () => void; onRestAll: () => void; onDelete: () => void; save: (p: Programme, reason: string) => Promise<void> }) {
   const { data } = useApp();
   const announce = useAnnounce();
   const item = (label: string, fn: () => void, danger = false) => (
@@ -588,6 +635,7 @@ function NoteMenu({ programme, onClose, onEditTop, onCopy, onDelete, save }: { p
           const n = programme.daysPerWeek >= 7 ? 1 : programme.daysPerWeek + 1;
           void save({ ...programme, daysPerWeek: n }, 'Changed frequency').then(() => announce(`${n} sessions per week.`));
         })}
+        {item('Rest between sets…', onRestAll)}
         {item('Rest times and priorities…', () => navigate(`/programmes/${encodeURIComponent(programme.id)}`))}
         {data.programmes.length > 0 && item('Delete note…', onDelete, true)}
       </div>

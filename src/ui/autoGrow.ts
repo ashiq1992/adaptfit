@@ -8,10 +8,19 @@ import { type RefObject, useEffect, useLayoutEffect } from 'react';
  */
 export function fitToContent(el: HTMLTextAreaElement | null): void {
   if (!el) return;
+  // Measuring collapses the box for a moment. Near the end of a long note that
+  // shortens the page and the browser pulls the scroll position up (the screen
+  // "jumps to the top" while typing). Hold the page's height and scroll still.
+  const y = window.scrollY;
+  const page = document.scrollingElement as HTMLElement | null;
+  const hold = page ? page.style.minHeight : '';
+  if (page) page.style.minHeight = `${page.scrollHeight}px`;
   el.style.height = 'auto';
   const borders = el.offsetHeight - el.clientHeight;
   const next = el.scrollHeight + borders;
   if (next > 0) el.style.height = `${next}px`;
+  if (page) page.style.minHeight = hold;
+  if (window.scrollY !== y) window.scrollTo(window.scrollX, y);
 }
 
 export function useAutoGrow(ref: RefObject<HTMLTextAreaElement | null>, value: string, enabled = true): void {
@@ -40,6 +49,39 @@ export function useAutoGrow(ref: RefObject<HTMLTextAreaElement | null>, value: s
       ro.disconnect();
     };
   }, [ref, enabled]);
+}
+
+/** Height of the on-screen keyboard (0 when closed or unknown). */
+export function keyboardHeight(): number {
+  const vv = window.visualViewport;
+  if (!vv) return 0;
+  const h = window.innerHeight - vv.height;
+  // Pinch zoom also shrinks the visual viewport: only count it at normal zoom.
+  return vv.scale > 1.01 || h < 80 ? 0 : Math.round(h);
+}
+
+/**
+ * While an editor is open, add the keyboard's height as space at the bottom of
+ * the page (--kb), so the last lines of a long note can be scrolled above the
+ * keyboard instead of staying hidden behind it.
+ */
+export function useKeyboardSpace(): void {
+  useEffect(() => {
+    const root = document.documentElement;
+    const vv = window.visualViewport;
+    const update = () => root.style.setProperty('--kb', `${keyboardHeight()}px`);
+    update();
+    vv?.addEventListener('resize', update);
+    return () => {
+      vv?.removeEventListener('resize', update);
+      root.style.removeProperty('--kb');
+    };
+  }, []);
+}
+
+/** Whether the caret is at the very end of the text (typing there grows the box downwards). */
+export function caretAtEnd(el: HTMLTextAreaElement | HTMLInputElement | null): boolean {
+  return !!el && el.selectionStart === el.value.length && el.selectionEnd === el.value.length;
 }
 
 /**

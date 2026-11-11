@@ -11,7 +11,8 @@ import { DayPicker, SettingsGroup, SettingsSection, Switch } from '../../ui/cont
 import { useApp } from '../../ui/DataContext';
 import { ConfirmDialog } from '../../ui/Dialog';
 import { navigate } from '../../ui/hooks';
-import { IconBriefcase, IconCalendar, IconDatabase, IconDownload, IconInfo, IconMoon, IconNotes, IconPalette, IconShield, IconTrain, IconUser, IconUtensils } from '../../ui/icons';
+import { enableNotifications, notificationsSupported, ring, setAlarmPrefs, silencedByTapJustNow, useAlarmPrefs, useRinging } from '../../ui/timerAlarm';
+import { IconBriefcase, IconCalendar, IconClock, IconDatabase, IconDownload, IconInfo, IconMoon, IconNotes, IconPalette, IconShield, IconTrain, IconUser, IconUtensils } from '../../ui/icons';
 import { setTheme, THEMES, useTheme } from '../../ui/theme';
 import { ScreenHeader } from '../../ui/ScreenHeader';
 import { EXPERIENCE_CHOICES, GOAL_CHOICES } from '../onboarding/choices';
@@ -54,6 +55,7 @@ export function SettingsScreen() {
           <GoalsSection />
           <AvailabilitySection />
           <LoggingSection />
+          <TimerAlarmSection />
           <UnitsSection />
         </SettingsSection>
         <SettingsSection title="Lifestyle">
@@ -101,6 +103,53 @@ function AppearanceSection() {
         </div>
         <p className="field-hint">Paper is warm and easy to read in daylight; Night is the same design in dark ink for the evening; Auto follows your phone’s light or dark mode. Saved on this device only.</p>
       </fieldset>
+    </SettingsGroup>
+  );
+}
+
+/** How a timer says the time is up. Saved on this device only. */
+function TimerAlarmSection() {
+  const prefs = useAlarmPrefs();
+  const ringing = useRinging();
+  const announce = useAnnounce();
+  const canNotify = notificationsSupported();
+  const blocked = canNotify && Notification.permission === 'denied';
+  const summary = [prefs.sound && 'Sound', prefs.vibrate && 'Vibration', prefs.notify && 'Notification'].filter(Boolean).join(' + ') || 'Silent';
+  return (
+    <SettingsGroup icon={<IconClock />} title="Timer alarm" subtitle={summary} id="timer-alarm">
+      <p className="small muted">When a rest or hold timer ends, the alarm rings until you tap the screen (at most 30 seconds). The screen stays on while a timer counts. The test rings for 5 seconds.</p>
+      <Switch label="Alarm sound" hint="Loud beeps. On iPhone the silent switch mutes web apps: switch it to ring at the gym." checked={prefs.sound} onChange={(v) => setAlarmPrefs({ sound: v })} />
+      <Switch label="Vibrate" hint="Android phones. iPhones don’t let web apps vibrate." checked={prefs.vibrate} onChange={(v) => setAlarmPrefs({ vibrate: v })} />
+      {canNotify && (
+        <Switch
+          label="Notify me if AdaptFit is in the background"
+          hint={
+            blocked
+              ? 'Notifications are blocked for AdaptFit in your browser or phone settings. Allow them there to use this.'
+              : 'Shows a notification with sound when the time is up and you are in another app. Works on Android; an iPhone pauses web apps in the background, so keep AdaptFit open there. Made on this phone, nothing is sent anywhere.'
+          }
+          checked={prefs.notify && !blocked}
+          onChange={(v) => {
+            if (!v) {
+              setAlarmPrefs({ notify: false });
+              announce('Background notification off.');
+              return;
+            }
+            void enableNotifications().then((ok) => announce(ok ? 'You’ll get a notification when a timer ends in the background.' : 'Notifications weren’t allowed, so this stays off.'));
+          }}
+        />
+      )}
+      <button
+        type="button"
+        className="btn btn-secondary"
+        data-testid="test-alarm"
+        onClick={() => {
+          // The tap that stops a ring must not start a new one.
+          if (!silencedByTapJustNow()) ring(Date.now(), 5000);
+        }}
+      >
+        {ringing ? 'Ringing… tap to stop' : 'Test the alarm'}
+      </button>
     </SettingsGroup>
   );
 }
@@ -449,7 +498,7 @@ function PrivacySection() {
         ))}
       </ul>
       {counting && <UsageCountSwitch />}
-      <p className="xs faint">AdaptFit V0.7 · Intelligent Workout Notebook</p>
+      <p className="xs faint">AdaptFit V0.8 · Intelligent Workout Notebook</p>
       <a href="#/admin" className="btn btn-secondary">
         Admin: this device’s storage and usage
       </a>
